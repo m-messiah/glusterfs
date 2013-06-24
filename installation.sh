@@ -19,5 +19,6 @@
 --docdir=/usr/share/doc/glusterfs\
 CFLAGS="-O3 -pipe"\
 CXXFLAGS="${CFLAGS}"
+make clean
 make
 make install
