@@ -2,8 +2,8 @@
 
 ./autogen.sh
 ./configure --prefix=/usr \
---build=i686-pc-linux-gnu \
---host=i686-pc-linux-gnu \
+--build=x86_64-pc-linux-gnu \
+--host=x86_64-pc-linux-gnu \
 --mandir=/usr/share/man \
 --infodir=/usr/share/info \
 --datadir=/usr/share \
@@ -17,7 +17,7 @@
 --enable-georeplication \
 --disable-bdb \
 --docdir=/usr/share/doc/glusterfs\
-CFLAGS="-O3 -pipe"\
+CFLAGS="-O3 -pipe -mmmx -msse2 -msse3 -mssse3"\
 CXXFLAGS="${CFLAGS}"
 make clean
 make

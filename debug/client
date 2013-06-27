@@ -1,1 +1,1 @@
-glusterfs --debug --volfile=./volfiles/brick1.vol /d
+sudo glusterfs --debug --volfile=./volfiles/brick1.vol /d
