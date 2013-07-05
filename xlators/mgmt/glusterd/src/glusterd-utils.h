@@ -151,9 +151,6 @@ glusterd_volume_brickinfo_get_by_brick (char *brick,
                                         glusterd_volinfo_t *volinfo,
                                         glusterd_brickinfo_t **brickinfo);
 
-gf_boolean_t
-glusterd_is_local_addr (char *hostname);
-
 int32_t
 glusterd_build_volume_dict (dict_t **vols);
 
@@ -528,6 +525,10 @@ glusterd_is_same_address (char *name1, char *name2);
 
 void
 gd_update_volume_op_versions (glusterd_volinfo_t *volinfo);
+
 char*
 gd_peer_uuid_str (glusterd_peerinfo_t *peerinfo);
+
+gf_boolean_t
+gd_is_remove_brick_committed (glusterd_volinfo_t *volinfo);
 #endif
