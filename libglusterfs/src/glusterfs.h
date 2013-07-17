@@ -95,7 +95,10 @@
                                        strlen (GF_XATTR_LOCKINFO_KEY)) == 0)
 
 #define GF_XATTR_LINKINFO_KEY   "trusted.distribute.linkinfo"
-#define GFID_XATTR_KEY "trusted.gfid"
+#define GFID_XATTR_KEY          "trusted.gfid"
+#define VIRTUAL_GFID_XATTR_KEY_STR  "glusterfs.gfid.string"
+#define VIRTUAL_GFID_XATTR_KEY      "glusterfs.gfid"
+#define UUID_CANONICAL_FORM_LEN 36
 
 #define GLUSTERFS_INTERNAL_FOP_KEY  "glusterfs-internal-fop"
 
@@ -109,6 +112,7 @@
 #define GLUSTERFS_PARENT_ENTRYLK "glusterfs.parent-entrylk"
 #define QUOTA_SIZE_KEY "trusted.glusterfs.quota.size"
 #define GFID_TO_PATH_KEY "glusterfs.gfid2path"
+#define GF_XATTR_STIME_PATTERN "trusted.glusterfs.*.stime"
 
 /* Index xlator related */
 #define GF_XATTROP_INDEX_GFID "glusterfs.xattrop_index_gfid"
@@ -318,6 +322,7 @@ struct _cmd_args {
 
 	/* fuse options */
 	int              fuse_direct_io_mode;
+	char             *use_readdirp;
         int              volfile_check;
 	double           fuse_entry_timeout;
 	double           fuse_negative_timeout;

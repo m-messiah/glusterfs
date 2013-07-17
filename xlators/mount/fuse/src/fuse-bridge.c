@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 #include "fuse-bridge.h"
 #include "mount-gluster-compat.h"
+#include "glusterfs.h"
 
 #ifdef __NetBSD__
 #undef open /* in perfuse.h, pulled from mount-gluster-compat.h */
@@ -3161,6 +3162,8 @@ out:
 void
 fuse_getxattr_resume (fuse_state_t *state)
 {
+        char *value  = NULL;
+
         if (!state->loc.inode) {
                 gf_log ("glusterfs-fuse", GF_LOG_WARNING,
                         "%"PRIu64": GETXATTR %s/%"PRIu64" (%s) "
@@ -3177,6 +3180,46 @@ fuse_getxattr_resume (fuse_state_t *state)
 #ifdef GF_TEST_FFOP
         state->fd = fd_lookup (state->loc.inode, state->finh->pid);
 #endif /* GF_TEST_FFOP */
+
+        if (state->name &&
+            (strcmp (state->name, VIRTUAL_GFID_XATTR_KEY) == 0)) {
+                /* send glusterfs gfid in binary form */
+
+                value = GF_CALLOC (16 + 1, sizeof(char),
+                                   gf_common_mt_char);
+                if (!value) {
+                        send_fuse_err (state->this, state->finh, ENOMEM);
+                        goto internal_out;
+                }
+                memcpy (value, state->loc.inode->gfid, 16);
+
+                send_fuse_xattr (THIS, state->finh, value, 16, state->size);
+                GF_FREE (value);
+        internal_out:
+                free_fuse_state (state);
+                return;
+        }
+
+        if (state->name &&
+            (strcmp (state->name, VIRTUAL_GFID_XATTR_KEY_STR) == 0)) {
+                /* transform binary gfid to canonical form */
+
+                value = GF_CALLOC (UUID_CANONICAL_FORM_LEN + 1, sizeof(char),
+                                   gf_common_mt_char);
+                if (!value) {
+                        send_fuse_err (state->this, state->finh, ENOMEM);
+                        goto internal_out1;
+                }
+                uuid_utoa_r (state->loc.inode->gfid, value);
+
+                send_fuse_xattr (THIS, state->finh, value,
+                                 UUID_CANONICAL_FORM_LEN, state->size);
+                GF_FREE (value);
+        internal_out1:
+                free_fuse_state (state);
+                return;
+        }
+
 
         if (state->fd) {
                 gf_log ("glusterfs-fuse", GF_LOG_TRACE,
@@ -3709,8 +3752,10 @@ fuse_init (xlator_t *this, fuse_in_header_t *finh, void *msg)
         if (fini->minor < 9)
                 *priv->msg0_len_p = sizeof(*finh) + FUSE_COMPAT_WRITE_IN_SIZE;
 #endif
-	if (fini->flags & FUSE_DO_READDIRPLUS)
-		fino.flags |= FUSE_DO_READDIRPLUS;
+        if (priv->use_readdirp) {
+                if (fini->flags & FUSE_DO_READDIRPLUS)
+                        fino.flags |= FUSE_DO_READDIRPLUS;
+        }
 
 	if (fini->flags & FUSE_ASYNC_DIO)
 		fino.flags |= FUSE_ASYNC_DIO;
@@ -4685,6 +4730,7 @@ fuse_priv_dump (xlator_t  *this)
                             (int)private->strict_volfile_check);
         gf_proc_dump_write("reverse_thread_started", "%d",
                            (int)private->reverse_fuse_thread_started);
+        gf_proc_dump_write("use_readdirp", "%d", private->use_readdirp);
 
         return 0;
 }
@@ -5072,6 +5118,8 @@ init (xlator_t *this_xl)
 
         GF_OPTION_INIT ("enable-ino32", priv->enable_ino32, bool, cleanup_exit);
 
+        GF_OPTION_INIT ("use-readdirp", priv->use_readdirp, bool, cleanup_exit);
+
         priv->fuse_dump_fd = -1;
         ret = dict_get_str (options, "dump-fuse", &value_string);
         if (ret == 0) {
@@ -5350,6 +5398,10 @@ struct volume_options options[] = {
         },
         { .key = {"fuse-mountopts"},
           .type = GF_OPTION_TYPE_STR
+        },
+        { .key = {"use-readdirp"},
+          .type = GF_OPTION_TYPE_BOOL,
+          .default_value = "no"
         },
         { .key = {NULL} },
 };

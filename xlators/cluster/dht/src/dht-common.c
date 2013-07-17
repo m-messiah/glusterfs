@@ -62,6 +62,11 @@ dht_aggregate (dict_t *this, char *key, data_t *value, void *data)
                 }
 
                 *size = hton64 (ntoh64 (*size) + ntoh64 (*ptr));
+
+        } else if (fnmatch (GF_XATTR_STIME_PATTERN, key, FNM_NOESCAPE) == 0) {
+                ret = gf_get_min_stime (THIS, dst, key, value);
+                if (ret < 0)
+                        return ret;
         } else {
                 /* compare user xattrs only */
                 if (!strncmp (key, "user.", strlen ("user."))) {
@@ -1645,7 +1650,8 @@ dht_unlink_linkfile_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
 
         LOCK (&frame->lock);
         {
-                if ((op_ret == -1) && (op_errno != ENOENT)) {
+                if ((op_ret == -1) && !((op_errno == ENOENT) ||
+                                        (op_errno == ENOTCONN))) {
                         local->op_errno = op_errno;
                         gf_log (this->name, GF_LOG_DEBUG,
                                 "subvolume %s returned -1 (%s)",
@@ -1797,6 +1803,7 @@ dht_vgetxattr_alloc_and_fill (dht_local_t *local, dict_t *xattr, xlator_t *this,
                 }
 
                 (void) strcat (local->xattr_val, value);
+                (void) strcat (local->xattr_val, " ");
                 local->op_ret = 0;
         }
 
@@ -1820,6 +1827,8 @@ dht_vgetxattr_fill_and_set (dht_local_t *local, dict_t **dict, xlator_t *this,
         *dict = dict_new ();
         if (!*dict)
                 goto out;
+
+        local->xattr_val[strlen (local->xattr_val) - 1] = '\0';
 
         /* we would need max this many bytes to create xattr string
          * extra 40 bytes is just an estimated amount of additional
@@ -2173,8 +2182,9 @@ dht_getxattr (call_frame_t *frame, xlator_t *this,
          * NOTE: Don't trust inode here, as that may not be valid
          *       (until inode_link() happens)
          */
-        if (key && (strcmp (key, GF_XATTR_PATHINFO_KEY) == 0)
-            && DHT_IS_DIR(layout)) {
+        if (key && DHT_IS_DIR(layout) &&
+            ((strcmp (key, GF_XATTR_PATHINFO_KEY) == 0)
+             || (strcmp (key, GF_XATTR_NODE_UUID_KEY) == 0))) {
                 (void) strncpy (local->xsel, key, 256);
                 cnt = local->call_cnt = layout->cnt;
                 for (i = 0; i < cnt; i++) {
@@ -2245,7 +2255,8 @@ dht_getxattr (call_frame_t *frame, xlator_t *this,
                 if (cluster_getmarkerattr (frame, this, loc, key,
                                            local, dht_getxattr_unwind,
                                            sub_volumes, cnt,
-                                           MARKER_UUID_TYPE, conf->vol_uuid)) {
+                                           MARKER_UUID_TYPE, marker_uuid_default_gauge,
+                                           conf->vol_uuid)) {
                         op_errno = EINVAL;
                         goto err;
                 }
@@ -2269,6 +2280,7 @@ dht_getxattr (call_frame_t *frame, xlator_t *this,
                                                    local, dht_getxattr_unwind,
                                                    sub_volumes, cnt,
                                                    MARKER_XTIME_TYPE,
+                                                   marker_xtime_default_gauge,
                                                    conf->vol_uuid)) {
                                 op_errno = EINVAL;
                                 goto err;
