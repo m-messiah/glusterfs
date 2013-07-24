@@ -8,3 +8,10 @@ volume vol-glupy
     option module-name debug-trace
     subvolumes vol-posix
 end-volume
+
+volume brick
+    type cluster/dht
+    subvolumes vol-glupy
+    option scheduler switch
+    option switch.case *.brick1:vol-glupy
+end-volume
