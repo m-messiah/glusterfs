@@ -1201,6 +1201,14 @@ struct volopt_map_entry glusterd_volopt_map[] = {
           .voltype     = "storage/posix",
           .op_version  = 1
         },
+        { .key         = "storage.batch-fsync-mode",
+          .voltype     = "storage/posix",
+          .op_version  = 3
+        },
+        { .key         = "storage.batch-fsync-delay-usec",
+          .voltype     = "storage/posix",
+          .op_version  = 3
+        },
         { .key         = "storage.owner-uid",
           .voltype     = "storage/posix",
           .option      = "brick-uid",
@@ -1238,6 +1246,32 @@ struct volopt_map_entry glusterd_volopt_map[] = {
         { .key         = GLUSTERD_QUORUM_RATIO_KEY,
           .voltype     = "mgmt/glusterd",
           .value       = "0",
+          .op_version  = 2
+        },
+        /* changelog translator - global tunables */
+        { .key         = "changelog.changelog",
+          .voltype     = "features/changelog",
+          .type        = NO_DOC,
+          .op_version  = 2
+        },
+        { .key         = "changelog.changelog-dir",
+          .voltype     = "features/changelog",
+          .type        = NO_DOC,
+          .op_version  = 2
+        },
+        { .key         = "changelog.encoding",
+          .voltype     = "features/changelog",
+          .type        = NO_DOC,
+          .op_version  = 2
+        },
+        { .key         = "changelog.rollover-time",
+          .voltype     = "features/changelog",
+          .type        = NO_DOC,
+          .op_version  = 2
+        },
+        { .key         = "changelog.fsync-interval",
+          .voltype     = "features/changelog",
+          .type        = NO_DOC,
           .op_version  = 2
         },
         { .key         = NULL

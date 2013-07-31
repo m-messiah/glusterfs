@@ -208,9 +208,16 @@ dht_discover_complete (xlator_t *this, call_frame_t *discover_frame)
                         goto out;
                 }
                 if (ret != 0) {
-                        gf_log (this->name, GF_LOG_DEBUG,
+                        gf_log (this->name, GF_LOG_WARNING,
                                 "normalizing failed on %s "
                                 "(overlaps/holes present)", local->loc.path);
+                        /* We may need to do the lookup again */
+                        /* in discover call, parent is not know, and basename
+                         * of entry is also not available. Without which we
+                         * cannot build a layout correctly to heal it. Hence
+                         * returning ESTALE */
+                        op_errno = ESTALE;
+                        goto out;
                 }
 
                 if (local->inode)
@@ -1429,7 +1436,6 @@ dht_lookup (call_frame_t *frame, xlator_t *this,
         VALIDATE_OR_GOTO (this, err);
         VALIDATE_OR_GOTO (loc, err);
         VALIDATE_OR_GOTO (loc->inode, err);
-        VALIDATE_OR_GOTO (loc->path, err);
 
         conf = this->private;
         if (!conf)
@@ -2137,7 +2143,6 @@ dht_getxattr (call_frame_t *frame, xlator_t *this,
         VALIDATE_OR_GOTO (this, err);
         VALIDATE_OR_GOTO (loc, err);
         VALIDATE_OR_GOTO (loc->inode, err);
-        VALIDATE_OR_GOTO (loc->path, err);
         VALIDATE_OR_GOTO (this->private, err);
 
         conf   = this->private;
@@ -2496,7 +2501,6 @@ dht_setxattr (call_frame_t *frame, xlator_t *this,
         VALIDATE_OR_GOTO (this, err);
         VALIDATE_OR_GOTO (loc, err);
         VALIDATE_OR_GOTO (loc->inode, err);
-        VALIDATE_OR_GOTO (loc->path, err);
 
         conf   = this->private;
 
@@ -2710,7 +2714,6 @@ dht_removexattr (call_frame_t *frame, xlator_t *this,
         VALIDATE_OR_GOTO (frame, err);
         VALIDATE_OR_GOTO (loc, err);
         VALIDATE_OR_GOTO (loc->inode, err);
-        VALIDATE_OR_GOTO (loc->path, err);
 
         local = dht_local_init (frame, loc, NULL, GF_FOP_REMOVEXATTR);
         if (!local) {
@@ -2942,7 +2945,6 @@ dht_statfs (call_frame_t *frame, xlator_t *this, loc_t *loc, dict_t *xdata)
         VALIDATE_OR_GOTO (this, err);
         VALIDATE_OR_GOTO (loc, err);
         VALIDATE_OR_GOTO (loc->inode, err);
-        VALIDATE_OR_GOTO (loc->path, err);
         VALIDATE_OR_GOTO (this->private, err);
 
         conf = this->private;
@@ -4878,7 +4880,6 @@ dht_entrylk (call_frame_t *frame, xlator_t *this,
         VALIDATE_OR_GOTO (this, err);
         VALIDATE_OR_GOTO (loc, err);
         VALIDATE_OR_GOTO (loc->inode, err);
-        VALIDATE_OR_GOTO (loc->path, err);
 
         local = dht_local_init (frame, loc, NULL, GF_FOP_ENTRYLK);
         if (!local) {

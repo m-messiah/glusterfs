@@ -29,6 +29,8 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile
                 libglusterfs/Makefile
                 libglusterfs/src/Makefile
+                geo-replication/src/peer_gsec_create
+                geo-replication/src/peer_add_secret_pub
                 glusterfsd/Makefile
                 glusterfsd/src/Makefile
                 rpc/Makefile
@@ -95,6 +97,10 @@ AC_CONFIG_FILES([Makefile
                 xlators/protocol/server/Makefile
                 xlators/protocol/server/src/Makefile
                 xlators/features/Makefile
+		xlators/features/changelog/Makefile
+		xlators/features/changelog/src/Makefile
+		xlators/features/changelog/lib/Makefile
+		xlators/features/changelog/lib/src/Makefile
                 xlators/features/glupy/Makefile
                 xlators/features/glupy/src/Makefile
                 xlators/features/locks/Makefile
@@ -103,9 +109,6 @@ AC_CONFIG_FILES([Makefile
                 xlators/features/quota/src/Makefile
                 xlators/features/marker/Makefile
                 xlators/features/marker/src/Makefile
-                xlators/features/marker/utils/Makefile
-                xlators/features/marker/utils/src/Makefile
-                xlators/features/marker/utils/syncdaemon/Makefile
                 xlators/features/read-only/Makefile
                 xlators/features/read-only/src/Makefile
                 xlators/features/mac-compat/Makefile
@@ -148,11 +151,16 @@ AC_CONFIG_FILES([Makefile
                 extras/ocf/glusterd
                 extras/ocf/volume
                 extras/LinuxRPM/Makefile
+                extras/geo-rep/Makefile
                 contrib/fuse-util/Makefile
                 contrib/uuid/uuid_types.h
                 glusterfs-api.pc
+                libgfchangelog.pc
                 api/Makefile
                 api/src/Makefile
+		geo-replication/Makefile
+		geo-replication/src/Makefile
+		geo-replication/syncdaemon/Makefile
                 glusterfs.spec])
 
 AC_CANONICAL_HOST
@@ -417,7 +425,7 @@ case $host_os in
 esac
 SYNCDAEMON_COMPILE=0
 if test "x$enable_georeplication" != "xno"; then
-  SYNCDAEMON_SUBDIR=utils
+  SYNCDAEMON_SUBDIR=geo-replication
   SYNCDAEMON_COMPILE=1
 
   BUILD_SYNCDAEMON="yes"
@@ -586,6 +594,18 @@ else
     CFLAGS="$saved_CFLAGS $CFLAGS"
 fi
 
+# check for gcc -Werror=implicit-function-declaration
+saved_CFLAGS=$CFLAGS
+CFLAGS="-Werror=implicit-function-declaration"
+AC_MSG_CHECKING([whether $CC accepts -Werror=implicit-function-declaration])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM()], [cc_werror_implicit=yes], [cc_werror_implicit=no])
+echo $cc_werror_implicit
+if test "x$cc_werror_implicit" = "xno"; then
+    CFLAGS="$saved_CFLAGS"
+else
+    CFLAGS="$saved_CFLAGS $CFLAGS"
+fi
+
 case $host_os in
      linux*)
      dnl        GF_LINUX_HOST_OS=1
@@ -657,6 +677,20 @@ else
 fi
 AC_SUBST(CFLAGS)
 # end enable debug section
+
+# syslog section
+AC_ARG_ENABLE([syslog],
+	      AC_HELP_STRING([--disable-syslog],
+			     [Disable syslog for logging]))
+
+USE_SYSLOG="yes"
+if test "x$enable_syslog" != "xno"; then
+  AC_DEFINE(GF_USE_SYSLOG, 1, [Use syslog for logging])
+else
+  USE_SYSLOG="no"
+fi
+AM_CONDITIONAL([ENABLE_SYSLOG], [test x$USE_SYSLOG = xyes])
+#end syslog section
 
 BUILD_READLINE=no
 AC_CHECK_LIB([readline -lcurses],[readline],[RLLIBS="-lreadline -lcurses"])
@@ -768,4 +802,5 @@ echo "Enable Debug         : $BUILD_DEBUG"
 echo "systemtap            : $BUILD_SYSTEMTAP"
 echo "Block Device backend : $BUILD_BD_XLATOR"
 echo "glupy                : $BUILD_GLUPY"
+echo "Use syslog           : $USE_SYSLOG"
 echo
