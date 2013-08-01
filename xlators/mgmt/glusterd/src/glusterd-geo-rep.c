@@ -33,11 +33,6 @@ glusterd_get_statefile_name (glusterd_volinfo_t *volinfo, char *slave,
                              char *conf_path, char **statefile);
 
 static int
-glusterd_get_slave_details_confpath (glusterd_volinfo_t *volinfo, dict_t *dict,
-                                     char **slave_ip, char **slave_vol,
-                                     char **conf_path);
-
-static int
 glusterd_get_slave_info (dict_t *dict, char **slave_ip, char **slave_vol);
 
 static int
@@ -1031,7 +1026,7 @@ glusterd_gsync_get_uuid (char *slave, glusterd_volinfo_t *vol,
         return ret;
 }
 
-static int
+int
 glusterd_check_gsync_running_local (char *master, char *slave,
                                     char *conf_path,
                                     gf_boolean_t *is_run)
@@ -1952,7 +1947,13 @@ glusterd_op_stage_gsync_set (dict_t *dict, char **op_errstr)
                 goto out;
         }
 
+        is_force = dict_get_str_boolean (dict, "force", _gf_false);
+
+        /* Allowing stop force to bypass the statefile check
+         * as this command acts as a fail safe method to stop geo-rep
+         * session. */
         if ((type == GF_GSYNC_OPTION_TYPE_CONFIG) ||
+            ((type == GF_GSYNC_OPTION_TYPE_STOP) && !is_force) ||
             (type == GF_GSYNC_OPTION_TYPE_DELETE)) {
                 ret = lstat (statefile, &stbuf);
                 if (ret) {
@@ -1966,8 +1967,6 @@ glusterd_op_stage_gsync_set (dict_t *dict, char **op_errstr)
                         goto out;
                 }
         }
-
-        is_force = dict_get_str_boolean (dict, "force", _gf_false);
 
         /* Check if all peers that are a part of the volume are up or not */
         if ((type == GF_GSYNC_OPTION_TYPE_DELETE) ||
@@ -2157,11 +2156,6 @@ out:
                 ret = 0;
         return ret;
 }
-
-static int
-glusterd_check_restart_gsync_session (glusterd_volinfo_t *volinfo, char *slave,
-                                      dict_t *resp_dict, char *path_list,
-                                      char *conf_path, gf_boolean_t is_force);
 
 static int
 glusterd_gsync_configure (glusterd_volinfo_t *volinfo, char *slave,
@@ -2569,7 +2563,7 @@ glusterd_read_status_file (glusterd_volinfo_t *volinfo, char *slave,
         return 0;
 }
 
-static int
+int
 glusterd_check_restart_gsync_session (glusterd_volinfo_t *volinfo, char *slave,
                                       dict_t *resp_dict, char *path_list,
                                       char *conf_path, gf_boolean_t is_force)
@@ -3394,7 +3388,7 @@ out:
         return ret;
 }
 
-static int
+int
 glusterd_get_slave_details_confpath (glusterd_volinfo_t *volinfo, dict_t *dict,
                                      char **slave_ip, char **slave_vol,
                                      char **conf_path)

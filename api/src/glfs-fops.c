@@ -388,8 +388,12 @@ retry:
 		goto out;
 	}
 
-	ret = syncop_create (subvol, &loc, flags, mode, glfd->fd,
-			     xattr_req, &iatt);
+	if (ret == 0) {
+		ret = syncop_open (subvol, &loc, flags, glfd->fd);
+	} else {
+		ret = syncop_create (subvol, &loc, flags, mode, glfd->fd,
+				     xattr_req, &iatt);
+	}
 
 	ESTALE_RETRY (ret, errno, reval, &loc, retry);
 
@@ -404,7 +408,7 @@ out:
 	if (ret && glfd) {
 		glfs_fd_destroy (glfd);
 		glfd = NULL;
-	} else {
+	} else if (glfd) {
 		fd_bind (glfd->fd);
 		glfs_fd_bind (glfd);
 	}
@@ -1203,6 +1207,7 @@ glfs_readlink (struct glfs *fs, const char *path, char *buf, size_t bufsiz)
 	loc_t            loc = {0, };
 	struct iatt      iatt = {0, };
 	int              reval = 0;
+	char            *linkval = NULL;
 
 	__glfs_entry_fs (fs);
 
@@ -1226,7 +1231,11 @@ retry:
 		goto out;
 	}
 
-	ret = syncop_readlink (subvol, &loc, &buf, bufsiz);
+	ret = syncop_readlink (subvol, &loc, &linkval, bufsiz);
+	if (ret > 0) {
+		memcpy (buf, linkval, ret);
+		GF_FREE (linkval);
+	}
 
 	ESTALE_RETRY (ret, errno, reval, &loc, retry);
 out:
