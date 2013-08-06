@@ -21,9 +21,9 @@ volume vol-glupy2
 end-volume
 
 
-volume brick
-    type cluster/dht
-    subvolumes vol-glupy1 vol-glupy2
-    option scheduler switch
-    option switch.case *.brick1:vol-glupy1;*.brick2:vol-glupy2
-end-volume
+#volume brick
+#    type cluster/dht
+#    subvolumes vol-glupy1 vol-glupy2
+#    option scheduler switch
+#    option switch.case *.brick1:vol-glupy1;*.brick2:vol-glupy2
+#end-volume

@@ -1,0 +1,20 @@
+volume client-0
+    type protocol/client
+    option remote-host muzafarov
+    option remote-subvolume /gluster/vol-glupy1
+    option transport-type tcp
+end-volume
+
+volume client-1
+    type protocol/client
+    option remote-host muzafarov
+    option remote-subvolume /gluster/vol-glupy2
+    option transport-type tcp
+end-volume
+
+volume cluster0
+    type cluster/dht
+    subvolumes client-0, client-1
+    option scheduler switch
+    option switch.case *.brick1:client-0;*.brick2:client-1
+end-volume

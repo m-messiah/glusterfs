@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CLEAN=
+make clean || CLEAN="make clean"
 ./autogen.sh
 ./configure --prefix=/usr \
 --build=x86_64-pc-linux-gnu \
@@ -15,10 +17,13 @@
 --disable-ibverbs \
 --disable-static \
 --enable-georeplication \
---disable-bdb \
---docdir=/usr/share/doc/glusterfs\
-CFLAGS="-O3 -pipe -mmmx -msse2 -msse3 -mssse3"\
+#--disable-bdb \
+--docdir=/usr/share/doc/glusterfs \
+CFLAGS="-O3 -pipe -mmmx -msse2 -msse3 -mssse3" \
 CXXFLAGS="${CFLAGS}"
-make clean
+$CLEAN
 make
+make uninstall
 make install
+rm -f /usr/sbin/glusterfs
+cp /usr/sbin/glusterfs{d,}
