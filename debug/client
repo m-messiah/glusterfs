@@ -1,1 +1,1 @@
-sudo glusterfs --debug --volfile=./volfiles/clients.vol /d
+glusterfs --debug --volfile=./volfiles/clients.vol /d

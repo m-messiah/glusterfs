@@ -1,1 +1,1 @@
-sudo glusterfsd --debug --volfile=./volfiles/bricks.vol -l ./log/bricks.log --brick-port 49152
+glusterfsd --debug --volfile=./volfiles/bricks.vol -l ./log/bricks.log --brick-port 49152
