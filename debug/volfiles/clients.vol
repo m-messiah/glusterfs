@@ -1,14 +1,14 @@
 volume client-0
     type protocol/client
     option remote-host muzafarov
-    option remote-subvolume /gluster/vol-glupy1
+    option remote-subvolume /vol-glupy1
     option transport-type tcp
 end-volume
 
 volume client-1
     type protocol/client
     option remote-host muzafarov
-    option remote-subvolume /gluster/vol-glupy2
+    option remote-subvolume /vol-glupy2
     option transport-type tcp
 end-volume
 
