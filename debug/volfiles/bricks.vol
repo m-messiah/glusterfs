@@ -20,10 +20,27 @@ volume vol-glupy2
     subvolumes vol-posix2
 end-volume
 
-
-volume brick
-    type cluster/dht
+volume brick1
+    type protocol/server
     subvolumes vol-glupy1 vol-glupy2
-    option scheduler switch
-    option switch.case *.brick1:vol-glupy1;*.brick2:vol-glupy2
+    option transport-type tcp
+    option auth.login.brick1.allow messiah
+    option auth.login.messiah.password Passw0rd
 end-volume
+
+#volume brick2
+#    type protocol/server
+#    subvolumes vol-glupy2
+#    option transport-type tcp
+#    option transport.socket.listen-port 24008
+#end-volume
+
+
+
+
+#volume brick
+#    type cluster/dht
+#    subvolumes vol-glupy1 vol-glupy2
+#    option scheduler switch
+#    option switch.case *.brick1:vol-glupy1;*.brick2:vol-glupy2
+#end-volume
