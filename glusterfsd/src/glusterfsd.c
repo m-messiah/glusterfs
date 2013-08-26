@@ -355,7 +355,7 @@ set_fuse_mount_options (glusterfs_ctx_t *ctx, dict_t *options)
         }
 
         if (cmd_args->aux_gfid_mount) {
-                ret = dict_set_static_ptr (options, "auxiliary-gfid-mount",
+                ret = dict_set_static_ptr (options, "virtual-gfid-access",
                                            "on");
                 if (ret < 0) {
                         gf_log ("glusterfsd", GF_LOG_ERROR,
