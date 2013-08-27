@@ -1,1 +1,1 @@
-glusterfsd --debug --volfile=./volfiles/server.vol
+glusterfsd --debug --volfile=./volfiles/server.vol 

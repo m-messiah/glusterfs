@@ -17,5 +17,5 @@ volume cluster
   type cluster/dht
   subvolumes node1 node2
   option scheduler switch
-  option switch.case *local:node1;*remote:node2
+  option switch.case *remote:node2;*local:node1
 end-volume
