@@ -133,6 +133,7 @@ afr_writev_wind_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
                      struct iatt *postbuf, dict_t *xdata)
 {
         afr_local_t *   local = NULL;
+        afr_private_t  *priv  = NULL;
         call_frame_t    *fop_frame = NULL;
         int child_index = (long) cookie;
         int call_count  = -1;
@@ -142,6 +143,7 @@ afr_writev_wind_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
         uint32_t write_is_append = 0;
 
         local = frame->local;
+        priv  = this->private;
 
         read_child = afr_inode_get_read_ctx (this, local->fd->inode, NULL);
 
@@ -155,8 +157,10 @@ afr_writev_wind_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
 		local->replies[child_index].op_ret = op_ret;
 		local->replies[child_index].op_errno = op_errno;
 
-                if (afr_fop_failed (op_ret, op_errno))
+                if (afr_fop_failed (op_ret, op_errno)) {
                         afr_transaction_fop_failed (frame, this, child_index);
+                        local->child_errno[child_index] = op_errno;
+                }
 
 		/* stage the best case return value for unwind */
                 if ((local->success_count == 0) || (op_ret > local->op_ret)) {
@@ -210,6 +214,10 @@ afr_writev_wind_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
                         afr_fd_report_unstable_write (this, local->fd);
 
                 afr_writev_handle_short_writes (frame, this);
+                if (afr_any_fops_failed (local, priv)) {
+                        //Don't unwind until post-op is complete
+                        local->transaction.resume (frame, this);
+                } else {
                 /*
                  * Generally inode-write fops do transaction.unwind then
                  * transaction.resume, but writev needs to make sure that
@@ -221,10 +229,11 @@ afr_writev_wind_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
                  * completed.
                  */
 
-                fop_frame = afr_transaction_detach_fop_frame (frame);
-                afr_writev_copy_outvars (frame, fop_frame);
-                local->transaction.resume (frame, this);
-                afr_writev_unwind (fop_frame, this);
+                        fop_frame = afr_transaction_detach_fop_frame (frame);
+                        afr_writev_copy_outvars (frame, fop_frame);
+                        local->transaction.resume (frame, this);
+                        afr_writev_unwind (fop_frame, this);
+                }
         }
         return 0;
 }
@@ -592,8 +601,10 @@ afr_truncate_wind_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
                         local->read_child_returned = _gf_true;
                 }
 
-                if (afr_fop_failed (op_ret, op_errno) && op_errno != EFBIG)
+                if (afr_fop_failed (op_ret, op_errno) && op_errno != EFBIG) {
                         afr_transaction_fop_failed (frame, this, child_index);
+                        local->child_errno[child_index] = op_errno;
+                }
 
                 if (op_ret != -1) {
                         if (local->success_count == 0) {
@@ -791,8 +802,10 @@ afr_ftruncate_wind_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
                         local->read_child_returned = _gf_true;
                 }
 
-                if (afr_fop_failed (op_ret, op_errno))
+                if (afr_fop_failed (op_ret, op_errno)) {
                         afr_transaction_fop_failed (frame, this, child_index);
+                        local->child_errno[child_index] = op_errno;
+                }
 
                 if (op_ret != -1) {
                         if (local->success_count == 0) {
