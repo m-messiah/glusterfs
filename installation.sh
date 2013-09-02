@@ -12,10 +12,10 @@ make clean || CLEAN="make clean"
 --sysconfdir=/etc \
 --localstatedir=/var/lib \
 --libdir=/usr/lib \
-#--disable-dependency-tracking \
+--disable-dependency-tracking \
 --enable-fuse-client \
-#--disable-ibverbs \
-#--disable-static \
+--disable-ibverbs \
+--disable-static \
 --enable-georeplication \
 #--disable-bdb \
 --docdir=/usr/share/doc/glusterfs \
@@ -25,5 +25,5 @@ $CLEAN
 make
 make uninstall
 make install
-rm -f /usr/sbin/glusterfs
-cp /usr/sbin/glusterfs{d,}
+#rm -f /usr/sbin/glusterfs
+#cp /usr/sbin/glusterfs{d,}

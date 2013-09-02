@@ -39,12 +39,12 @@ syn keyword	glusterfsTodo	contained TODO FIXME NOTE
 syn match glusterfsType "^\s*type\s\+" skipwhite nextgroup=glusterfsTypeKeyVal
 
 syn match glusterfsTypeKeyVal contained "\<protocol/\(client\|server\)\>"
-syn match glusterfsTypeKeyVal contained "\<cluster/\(unify\|afr\|stripe\)\>"
+syn match glusterfsTypeKeyVal contained "\<cluster/\(dht\|afr\|stripe\)\>"
 syn match glusterfsTypeKeyVal contained "\<debug/\(trace\)\>"
 syn match glusterfsTypeKeyVal contained "\<encryption/\(rot-13\)\>"
 syn match glusterfsTypeKeyVal contained "\<storage/\(posix\)\>"
 "syn match glusterfsTypeKeyVal contained "\<features/\(trash\)\>"
-syn match glusterfsTypeKeyVal contained "\<features/\(trash\|posix-locks\|fixed-id\|filter\)\>"
+syn match glusterfsTypeKeyVal contained "\<features/\(trash\|posix-locks\|fixed-id\|filter\|locks\|glupy\)\>"
 syn match glusterfsTypeKeyVal contained "\<performance/\(io-threads\|write-behind\|io-cache\|read-ahead\)\>"
 "------------------------------------------------------------------------
 " 'Type' End
@@ -83,6 +83,9 @@ syn match glusterfsOpt "^\s*option\s\+" nextgroup=glusterfsOptKey
 
 syn keyword glusterfsOptKey contained transport-type skipwhite nextgroup=glusterfsOptValTransportType
 syn match glusterfsOptValTransportType contained "\<\(tcp\|ib\-verbs\|ib-sdp\)/\(client\|server\)\>"
+
+syn keyword glusterfsOptKey contained module-name skipwhite nextgroup=glusterfsOptValModuleName
+syn match glusterfsOptValModuleName contained "\<\(debug-trace\|negative\)\>"
 
 syn keyword glusterfsOptKey contained remote-subvolume skipwhite nextgroup=glusterfsVolName
 
@@ -123,13 +126,13 @@ syn keyword glusterfsOptKey contained ib-verbs-device-name nextgroup=glusterfsOp
 syn match glusterfsOpt_Number contained "\s\+\d\+\>"
 
 syn keyword glusterfsOptKey contained scheduler skipwhite nextgroup=glusterfsOptValScheduler
-syn keyword glusterfsOptValScheduler contained rr alu random nufa
+syn keyword glusterfsOptValScheduler contained rr alu random nufa switch
 
 syn keyword glusterfsOptKey contained namespace skipwhite nextgroup=glusterfsVolName
 
 syn keyword glusterfsOptKey contained lock-node skipwhite nextgroup=glusterfsVolName
 
-
+syn keyword glusterfsOptKey contained local-volume-name skipwhite nextgroup=glusterfsVolName
 
 syn keyword glusterfsOptKey contained alu.write-usage.entry-threshold alu.write-usage.exit-threshold alu.read-usage.entry-threshold alu.read-usage.exit-threshold alu.limits.min-free-disk nextgroup=glusterfsOpt_Percentage
 
@@ -140,7 +143,9 @@ syn keyword glusterfsOptKey contained nufa.limits.min-free-disk nextgroup=gluste
 
 syn match glusterfsOpt_Percentage contained "\s\+\d\+%\=\>"
 
+syn keyword glusterfsOptKey contained switch.case skipwhite nextgroup=glusterfsOpt_Switch
 
+syn match glusterfsOpt_Switch contained ".*"
 
 
 
@@ -180,6 +185,7 @@ hi link glusterfsOptKey Special
 hi link glusterfsOptVal Normal
 
 hi link glusterfsOptValTransportType String
+hi link glusterfsOptValModuleName String
 hi link glusterfsOptValScheduler String
 hi link glusterfsOptValAluOrder String
 hi link glusterfsOptValIBVerbsMtu String
