@@ -22,7 +22,9 @@
 #define VKEY_DIAG_CNT_FOP_HITS    "diagnostics.count-fop-hits"
 #define VKEY_DIAG_LAT_MEASUREMENT "diagnostics.latency-measurement"
 #define VKEY_FEATURES_LIMIT_USAGE "features.limit-usage"
+#define VKEY_FEATURES_SOFT_LIMIT  "features.soft-limit"
 #define VKEY_MARKER_XTIME         GEOREP".indexing"
+#define VKEY_MARKER_XTIME_FORCE   GEOREP".ignore-pid-check"
 #define VKEY_CHANGELOG            "changelog.changelog"
 #define VKEY_FEATURES_QUOTA       "features.quota"
 
@@ -74,6 +76,7 @@ typedef enum {
         GF_XLATOR_INDEX,
         GF_XLATOR_MARKER,
         GF_XLATOR_IO_STATS,
+        GF_XLATOR_BD,
         GF_XLATOR_NONE,
 } glusterd_server_xlator_t;
 
@@ -119,6 +122,7 @@ void glusterd_get_shd_filepath (char *filename);
 
 int glusterd_create_nfs_volfile ();
 int glusterd_create_shd_volfile ();
+int glusterd_create_quotad_volfile ();
 
 int glusterd_delete_volfile (glusterd_volinfo_t *volinfo,
                              glusterd_brickinfo_t *brickinfo);
@@ -135,11 +139,15 @@ glusterd_check_voloption_flags (char *key, int32_t flags);
 gf_boolean_t
 glusterd_is_valid_volfpath (char *volname, char *brick);
 int generate_brick_volfiles (glusterd_volinfo_t *volinfo);
+int generate_client_volfiles (glusterd_volinfo_t *volinfo,
+                              glusterd_client_type_t client_type);
 int glusterd_get_volopt_content (dict_t *dict, gf_boolean_t xml_out);
 char*
 glusterd_get_trans_type_rb (gf_transport_type ttype);
 int
 glusterd_check_nfs_volfile_identical (gf_boolean_t *identical);
+int
+glusterd_check_nfs_topology_identical (gf_boolean_t *identical);
 
 uint32_t
 glusterd_get_op_version_for_key (char *key);

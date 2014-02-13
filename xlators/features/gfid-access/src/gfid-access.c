@@ -68,8 +68,12 @@ ga_newfile_parse_args (xlator_t *this, data_t *data)
 
         min_len = sizeof (args->uid) + sizeof (args->gid) + sizeof (args->gfid)
                 + sizeof (args->st_mode) + 2 + 2;
-        if (blob_len < min_len)
+        if (blob_len < min_len) {
+                gf_log (this->name, GF_LOG_ERROR,
+                        "Invalid length: Total length is less "
+                        "than minimum length.");
                 goto err;
+        }
 
         args = mem_get0 (priv->newfile_args_pool);
         if (args == NULL)
@@ -93,7 +97,12 @@ ga_newfile_parse_args (xlator_t *this, data_t *data)
 
         len = strnlen (blob, blob_len);
         if (len == blob_len)
+        if (len == blob_len) {
+                gf_log (this->name, GF_LOG_ERROR,
+                        "gfid: %s. No null byte present.",
+                        args->gfid);
                 goto err;
+        }
 
         args->bname = GF_CALLOC (1, (len + 1), gf_common_mt_char);
         if (args->bname == NULL)
@@ -104,25 +113,39 @@ ga_newfile_parse_args (xlator_t *this, data_t *data)
         blob_len -= (len + 1);
 
         if (S_ISDIR (args->st_mode)) {
-                if (blob_len < sizeof (uint32_t))
+                if (blob_len < sizeof (uint32_t)) {
+                        gf_log (this->name, GF_LOG_ERROR,
+                                "gfid: %s. Invalid length",
+                                args->gfid);
                         goto err;
+                }
                 args->args.mkdir.mode = ntoh32 (*(uint32_t *)blob);
                 blob += sizeof (uint32_t);
                 blob_len -= sizeof (uint32_t);
 
-                if (blob_len < sizeof (uint32_t))
+                if (blob_len < sizeof (uint32_t)) {
+                        gf_log (this->name, GF_LOG_ERROR,
+                                "gfid: %s. Invalid length",
+                                args->gfid);
                         goto err;
+                }
                 args->args.mkdir.umask = ntoh32 (*(uint32_t *)blob);
                 blob += sizeof (uint32_t);
                 blob_len -= sizeof (uint32_t);
-                if (blob_len < 0)
+                if (blob_len < 0) {
+                        gf_log (this->name, GF_LOG_ERROR,
+                                "gfid: %s. Invalid length",
+                                args->gfid);
                         goto err;
-
+                }
         } else if (S_ISLNK (args->st_mode)) {
                 len = strnlen (blob, blob_len);
-                if (len == blob_len)
+                if (len == blob_len) {
+                        gf_log (this->name, GF_LOG_ERROR,
+                                "gfid: %s. Invalid length",
+                                args->gfid);
                         goto err;
-
+                }
                 args->args.symlink.linkpath = GF_CALLOC (1, len + 1,
                                                          gf_common_mt_char);
                 if (args->args.symlink.linkpath == NULL)
@@ -132,27 +155,43 @@ ga_newfile_parse_args (xlator_t *this, data_t *data)
                 blob += (len + 1);
                 blob_len -= (len + 1);
         } else {
-                if (blob_len < sizeof (uint32_t))
+                if (blob_len < sizeof (uint32_t)) {
+                        gf_log (this->name, GF_LOG_ERROR,
+                                "gfid: %s. Invalid length",
+                                args->gfid);
                         goto err;
+                }
                 args->args.mknod.mode = ntoh32 (*(uint32_t *)blob);
                 blob += sizeof (uint32_t);
                 blob_len -= sizeof (uint32_t);
 
-                if (blob_len < sizeof (uint32_t))
+                if (blob_len < sizeof (uint32_t)) {
+                        gf_log (this->name, GF_LOG_ERROR,
+                                "gfid: %s. Invalid length",
+                                args->gfid);
                         goto err;
+                }
                 args->args.mknod.rdev = ntoh32 (*(uint32_t *)blob);
                 blob += sizeof (uint32_t);
                 blob_len -= sizeof (uint32_t);
 
-                if (blob_len < sizeof (uint32_t))
+                if (blob_len < sizeof (uint32_t)) {
+                        gf_log (this->name, GF_LOG_ERROR,
+                                "gfid: %s. Invalid length",
+                                args->gfid);
                         goto err;
+                }
                 args->args.mknod.umask = ntoh32 (*(uint32_t *)blob);
                 blob += sizeof (uint32_t);
                 blob_len -= sizeof (uint32_t);
         }
 
-        if (blob_len)
+        if (blob_len) {
+                gf_log (this->name, GF_LOG_ERROR,
+                        "gfid: %s. Invalid length",
+                        args->gfid);
                 goto err;
+        }
 
         return args;
 
@@ -213,7 +252,7 @@ err:
 }
 
 static int32_t
-ga_fill_tmp_loc (loc_t *loc, xlator_t *this, char *gfid,
+ga_fill_tmp_loc (loc_t *loc, xlator_t *this, uuid_t gfid,
                  char *bname, dict_t *xdata, loc_t *new_loc)
 {
         int       ret    = -1;
@@ -224,6 +263,8 @@ ga_fill_tmp_loc (loc_t *loc, xlator_t *this, char *gfid,
         ret = inode_ctx_get (loc->inode, this, &value);
         if (!ret) {
                 parent = (void *)value;
+                if (uuid_is_null (parent->gfid))
+                        parent = loc->inode;
         }
 
         /* parent itself should be looked up */
@@ -307,16 +348,15 @@ ga_heal_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
         return 0;
 }
 
-static int
-ga_newentry_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
-                 int32_t op_ret, int32_t op_errno,
-                 inode_t *inode, struct iatt *buf,
-                 struct iatt *preparent, struct iatt *postparent,
-                 dict_t *xdata)
+static int32_t
+ga_newentry_setattr_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
+                         int32_t op_ret, int32_t op_errno, struct iatt *statpre,
+                         struct iatt *statpost,
+                         dict_t *xdata)
 {
-        call_frame_t *orig_frame = NULL;
+        ga_local_t *local = NULL;
 
-        orig_frame = frame->local;
+        local = frame->local;
         frame->local = NULL;
 
         /* don't worry about inode linking and other stuff. They'll happen on
@@ -324,7 +364,51 @@ ga_newentry_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
          */
         STACK_DESTROY (frame->root);
 
-        STACK_UNWIND_STRICT (setxattr, orig_frame, op_ret, op_errno, xdata);
+        STACK_UNWIND_STRICT (setxattr, local->orig_frame, op_ret,
+                             op_errno, xdata);
+
+        loc_wipe (&local->loc);
+        mem_put (local);
+
+        return 0;
+}
+
+static int
+ga_newentry_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
+                 int32_t op_ret, int32_t op_errno,
+                 inode_t *inode, struct iatt *buf,
+                 struct iatt *preparent, struct iatt *postparent,
+                 dict_t *xdata)
+{
+        ga_local_t *local = NULL;
+        struct iatt temp_stat = {0,};
+
+        local = frame->local;
+
+        if (!local->uid && !local->gid)
+                goto done;
+
+        temp_stat.ia_uid = local->uid;
+        temp_stat.ia_gid = local->gid;
+
+        STACK_WIND (frame, ga_newentry_setattr_cbk, FIRST_CHILD (this),
+                    FIRST_CHILD (this)->fops->setattr, &local->loc, &temp_stat,
+                    (GF_SET_ATTR_UID | GF_SET_ATTR_GID), xdata);
+
+        return 0;
+
+done:
+        /* don't worry about inode linking and other stuff. They'll happen on
+         * the next lookup.
+         */
+        frame->local = NULL;
+        STACK_DESTROY (frame->root);
+
+        STACK_UNWIND_STRICT (setxattr, local->orig_frame, op_ret,
+                             op_errno, xdata);
+
+        loc_wipe (&local->loc);
+        mem_put (local);
 
         return 0;
 }
@@ -338,15 +422,21 @@ ga_new_entry (call_frame_t *frame, xlator_t *this, loc_t *loc, data_t *data,
         loc_t              tmp_loc   = {0,};
         call_frame_t      *new_frame = NULL;
         mode_t             mode      = 0;
+        ga_local_t        *local     = NULL;
+        uuid_t             gfid      = {0,};
 
         args = ga_newfile_parse_args (this, data);
         if (!args)
                 goto out;
 
+        ret = uuid_parse (args->gfid, gfid);
+        if (ret)
+                goto out;
+
         if (!xdata)
                 xdata = dict_new ();
 
-        ret = ga_fill_tmp_loc (loc, this, args->gfid,
+        ret = ga_fill_tmp_loc (loc, this, gfid,
                                args->bname, xdata, &tmp_loc);
         if (ret)
                 goto out;
@@ -354,10 +444,16 @@ ga_new_entry (call_frame_t *frame, xlator_t *this, loc_t *loc, data_t *data,
         new_frame = copy_frame (frame);
         if (!new_frame)
                 goto out;
-        new_frame->local = (void *)frame;
 
-        new_frame->root->uid = args->uid;
-        new_frame->root->gid = args->gid;
+        local = mem_get0 (this->local_pool);
+        local->orig_frame = frame;
+
+        local->uid = args->uid;
+        local->gid = args->gid;
+
+        loc_copy (&local->loc, &tmp_loc);
+
+        new_frame->local = local;
 
         if (S_ISDIR (args->st_mode)) {
                 STACK_WIND (new_frame, ga_newentry_cbk,
@@ -372,7 +468,7 @@ ga_new_entry (call_frame_t *frame, xlator_t *this, loc_t *loc, data_t *data,
         } else {
                 /* use 07777 (4 7s) for considering the Sticky bits etc) */
                 mode = (S_IFMT & args->st_mode) |
-                        (07777 | args->args.mknod.mode);;
+                        (07777 & args->args.mknod.mode);;
 
                 STACK_WIND (new_frame, ga_newentry_cbk,
                             FIRST_CHILD(this), FIRST_CHILD(this)->fops->mknod,
@@ -396,15 +492,20 @@ ga_heal_entry (call_frame_t *frame, xlator_t *this, loc_t *loc, data_t *data,
         ga_heal_args_t *args      = NULL;
         loc_t           tmp_loc   = {0,};
         call_frame_t   *new_frame = NULL;
+        uuid_t          gfid      = {0,};
 
         args = ga_heal_parse_args (this, data);
         if (!args)
                 goto out;
 
+        ret = uuid_parse (args->gfid, gfid);
+        if (ret)
+                goto out;
+
         if (!xdata)
                 xdata = dict_new ();
 
-        ret = ga_fill_tmp_loc (loc, this, args->gfid, args->bname,
+        ret = ga_fill_tmp_loc (loc, this, gfid, args->bname,
                                xdata, &tmp_loc);
         if (ret)
                 goto out;
@@ -469,13 +570,8 @@ ga_setxattr (call_frame_t *frame, xlator_t *this, loc_t *loc, dict_t *dict,
                 return 0;
         }
 
-        /* now, check if the setxattr() is on gfid-path */
-        if (!((loc->parent &&
-               __is_gfid_access_dir (loc->parent->gfid)) ||
-              __is_gfid_access_dir (loc->pargfid))) {
-                goto wind;
-        }
-
+        //If the inode is a virtual inode change the inode otherwise perform
+        //the operation on same inode
         GFID_ACCESS_GET_VALID_DIR_INODE (this, loc, unref, wind);
 
 wind:
@@ -533,7 +629,8 @@ ga_virtual_lookup_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
                         /* the inode is not present in itable, ie, the actual
                            path is not yet looked up. Use the current inode
                            itself for now */
-                        inode_ref (inode);
+
+                        inode_link (inode, NULL, NULL, buf);
                 } else {
                         /* 'inode_ref()' has been done in inode_find() */
                         inode = true_inode;
@@ -624,8 +721,30 @@ ga_lookup (call_frame_t *frame, xlator_t *this, loc_t *loc, dict_t *xdata)
         /* if its revalidate, and inode is not of type directory,
            proceed with 'wind' */
         if (loc->inode && loc->inode->ia_type &&
-            !IA_ISDIR (loc->inode->ia_type))
+            !IA_ISDIR (loc->inode->ia_type)) {
+
+                /* a revalidate on ".gfid/<dentry>" is possible, check for it */
+                if (((loc->parent &&
+                      __is_gfid_access_dir (loc->parent->gfid)) ||
+                     __is_gfid_access_dir (loc->pargfid))) {
+
+                        /* here, just send 'loc->gfid' and 'loc->inode' */
+                        tmp_loc.inode = inode_ref (loc->inode);
+                        uuid_copy (tmp_loc.gfid, loc->inode->gfid);
+
+                        STACK_WIND (frame, default_lookup_cbk,
+                                    FIRST_CHILD(this),
+                                    FIRST_CHILD(this)->fops->lookup,
+                                    &tmp_loc, xdata);
+
+                        inode_unref (tmp_loc.inode);
+
+                        return 0;
+                }
+
+                /* not something to bother, continue the flow */
                 goto wind;
+        }
 
         priv = this->private;
 
@@ -645,8 +764,26 @@ ga_lookup (call_frame_t *frame, xlator_t *this, loc_t *loc, dict_t *xdata)
         /* now, check if the lookup() is on an existing entry,
            but on gfid-path */
         if (!((loc->parent && __is_gfid_access_dir (loc->parent->gfid)) ||
-              __is_gfid_access_dir (loc->pargfid)))
-                goto wind;
+              __is_gfid_access_dir (loc->pargfid))) {
+                if (!loc->parent)
+                        goto wind;
+
+                ret = inode_ctx_get (loc->parent, this, &value);
+                if (ret)
+                        goto wind;
+
+                inode = (inode_t *) value;
+
+                ret = loc_copy_overload_parent (&tmp_loc, loc, inode);
+                if (ret)
+                        goto err;
+
+                STACK_WIND (frame, ga_lookup_cbk, FIRST_CHILD (this),
+                            FIRST_CHILD (this)->fops->lookup, &tmp_loc, xdata);
+
+                loc_wipe (&tmp_loc);
+                return 0;
+        }
 
         /* make sure the 'basename' is actually a 'canonical-gfid',
            otherwise, return error */
@@ -1071,6 +1208,13 @@ init (xlator_t *this)
         priv->heal_args_pool = mem_pool_new (ga_heal_args_t, 512);
         if (!priv->heal_args_pool)
                 goto out;
+
+        this->local_pool = mem_pool_new (ga_local_t, 16);
+        if (!this->local_pool) {
+                gf_log (this->name, GF_LOG_ERROR,
+                        "failed to create local_t's memory pool");
+                goto out;
+        }
 
         this->private = priv;
 

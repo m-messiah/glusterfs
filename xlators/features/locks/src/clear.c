@@ -338,8 +338,8 @@ blkd:
                                    elock->basename, ENTRYLK_LOCK, elock->type,
                                    -1, EAGAIN);
                 STACK_UNWIND_STRICT (entrylk, elock->frame, -1, EAGAIN, NULL);
-                GF_FREE ((char *) elock->basename);
-                GF_FREE (elock);
+
+		__pl_entrylk_unref (elock);
         }
 
         if (!(args->kind & CLRLK_GRANTED)) {
@@ -362,13 +362,13 @@ granted:
                         gcount++;
                         list_del_init (&elock->domain_list);
                         list_add_tail (&elock->domain_list, &removed);
+
+			__pl_entrylk_unref (elock);
                 }
         }
         pthread_mutex_unlock (&pl_inode->mutex);
 
-        list_for_each_entry_safe (elock, tmp, &removed, domain_list) {
-                grant_blocked_entry_locks (this, pl_inode, elock, dom);
-        }
+	grant_blocked_entry_locks (this, pl_inode, dom);
 
         ret = 0;
 out:
@@ -379,8 +379,8 @@ out:
 
 int
 clrlk_clear_lks_in_all_domains (xlator_t *this, pl_inode_t *pl_inode,
-                          clrlk_args *args, int *blkd, int *granted,
-                          int *op_errno)
+                                clrlk_args *args, int *blkd, int *granted,
+                                int *op_errno)
 {
         pl_dom_list_t   *dom            = NULL;
         int             ret             = -1;

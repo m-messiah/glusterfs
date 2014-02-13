@@ -130,7 +130,7 @@ client_register_grace_timer (xlator_t *this, clnt_conf_t *conf)
 
                         conf->grace_timer =
                                 gf_timer_call_after (this->ctx,
-                                                     conf->grace_tv,
+                                                     conf->grace_ts,
                                                      client_grace_timeout,
                                                      conf->rpc);
                 }
@@ -943,6 +943,7 @@ client_writev (call_frame_t *frame, xlator_t *this, fd_t *fd,
         args.vector = vector;
         args.count  = count;
         args.offset = off;
+        args.size   = iov_length (vector, count);
         args.flags  = flags;
         args.iobref = iobref;
         args.xdata = xdata;
@@ -2031,6 +2032,42 @@ out:
 }
 
 int32_t
+client_zerofill(call_frame_t *frame, xlator_t *this, fd_t *fd, off_t offset,
+               off_t len, dict_t *xdata)
+{
+        int          ret              = -1;
+        clnt_conf_t *conf             = NULL;
+        rpc_clnt_procedure_t *proc    = NULL;
+        clnt_args_t  args             = {0,};
+
+        conf = this->private;
+        if (!conf || !conf->fops)
+                goto out;
+
+        args.fd = fd;
+        args.offset = offset;
+        args.size = len;
+        args.xdata = xdata;
+
+        proc = &conf->fops->proctable[GF_FOP_ZEROFILL];
+        if (!proc) {
+                gf_log (this->name, GF_LOG_ERROR,
+                        "rpc procedure not found for %s",
+                        gf_fop_list[GF_FOP_ZEROFILL]);
+                goto out;
+        }
+        if (proc->fn)
+                ret = proc->fn (frame, this, &args);
+out:
+        if (ret)
+                STACK_UNWIND_STRICT(zerofill, frame, -1, ENOTCONN,
+                                    NULL, NULL, NULL);
+
+        return 0;
+}
+
+
+int32_t
 client_getspec (call_frame_t *frame, xlator_t *this, const char *key,
                 int32_t flags)
 {
@@ -2414,14 +2451,14 @@ client_init_grace_timer (xlator_t *this, dict_t *options,
 
         ret = dict_get_int32 (options, "grace-timeout", &grace_timeout);
         if (!ret)
-                conf->grace_tv.tv_sec = grace_timeout;
+                conf->grace_ts.tv_sec = grace_timeout;
         else
-                conf->grace_tv.tv_sec = 10;
+                conf->grace_ts.tv_sec = 10;
 
-        conf->grace_tv.tv_usec  = 0;
+        conf->grace_ts.tv_nsec  = 0;
 
         gf_log (this->name, GF_LOG_DEBUG, "Client grace timeout "
-                "value = %"PRIu64, conf->grace_tv.tv_sec);
+                "value = %"PRIu64, conf->grace_ts.tv_sec);
 
         ret = 0;
 out:
@@ -2749,6 +2786,7 @@ struct xlator_fops fops = {
         .fsetattr    = client_fsetattr,
 	.fallocate   = client_fallocate,
 	.discard     = client_discard,
+        .zerofill    = client_zerofill,
         .getspec     = client_getspec,
 };
 
@@ -2804,13 +2842,19 @@ struct volume_options options[] = {
         { .key   = {"lk-heal"},
           .type  = GF_OPTION_TYPE_BOOL,
           .default_value = "off",
-          .description = "Enables or disables the lock heal."
+          .description = "When the connection to client is lost, server "
+                         "cleans up all the locks held by the client. After "
+                         "the connection is restored, the client reacquires "
+                         "(heals) the fcntl locks released by the server."
         },
         { .key   = {"grace-timeout"},
           .type  = GF_OPTION_TYPE_INT,
           .min   = 10,
           .max   = 1800,
-          .description = "Sets the grace-timeout value. Valid range 10-1800."
+          .default_value = "10",
+          .description = "Specifies the duration for the lock state to be "
+                         "maintained on the client after a network "
+                         "disconnection. Range 10-1800 seconds."
         },
         {.key  = {"tcp-window-size"},
          .type = GF_OPTION_TYPE_SIZET,

@@ -12,6 +12,7 @@ from signal import signal, SIGTERM, SIGKILL
 from time import sleep
 import select as oselect
 from os import waitpid as owaitpid
+
 try:
     from cPickle import PickleError
 except ImportError:
@@ -34,6 +35,7 @@ except ImportError:
 
 # auxillary gfid based access prefix
 _CL_AUX_GFID_PFX = ".gfid/"
+GF_OP_RETRIES = 20
 
 def escape(s):
     """the chosen flavor of string escaping, used all over
@@ -77,6 +79,38 @@ def update_file(path, updater, merger = lambda f: True):
         for fx in (fr, fw):
             if fx:
                 fx.close()
+
+def create_manifest(fname, content):
+    """
+    Create manifest file for SSH Control Path
+    """
+    fd = None
+    try:
+        fd = os.open(fname, os.O_CREAT|os.O_RDWR)
+        try:
+            os.write(fd, content)
+        except:
+            os.close(fd)
+            raise
+    finally:
+        if fd != None:
+            os.close(fd)
+
+def setup_ssh_ctl(ctld, remote_addr, resource_url):
+    """
+    Setup GConf ssh control path parameters
+    """
+    gconf.ssh_ctl_dir = ctld
+    content = "SLAVE_HOST=%s\nSLAVE_RESOURCE_URL=%s" % (remote_addr,
+                                                            resource_url)
+    content_md5 = md5hex(content)
+    fname = os.path.join(gconf.ssh_ctl_dir,
+                         "%s.mft" % content_md5)
+
+    create_manifest(fname, content)
+    ssh_ctl_path = os.path.join(gconf.ssh_ctl_dir,
+                                "%s.sock" % content_md5)
+    gconf.ssh_ctl_args = ["-oControlMaster=auto", "-S", ssh_ctl_path]
 
 def grabfile(fname, content=None):
     """open @fname + contest for its fcntl lock
@@ -193,7 +227,7 @@ def log_raise_exception(excont):
                     logging.warn("!!!!!!!!!!!!!")
                     logging.warn('!!! getting "No such file or directory" errors '
                                  "is most likely due to MISCONFIGURATION, please consult "
-                                 "http://access.redhat.com/knowledge/docs/en-US/Red_Hat_Storage/2.0/html/Administration_Guide/chap-User_Guide-Geo_Rep-Preparation-Settingup_Environment.html")
+                                 "https://access.redhat.com/site/documentation/en-US/Red_Hat_Storage/2.1/html/Administration_Guide/chap-User_Guide-Geo_Rep-Preparation-Settingup_Environment.html")
                     logging.warn("!!!!!!!!!!!!!")
                 gconf.transport.terminate_geterr()
         elif isinstance(exc, OSError) and exc.errno in (ENOTCONN, ECONNABORTED):
@@ -372,10 +406,11 @@ def md5hex(s):
 def selfkill(sig=SIGTERM):
     os.kill(os.getpid(), sig)
 
-def errno_wrap(call, arg=[], errnos=[]):
+def errno_wrap(call, arg=[], errnos=[], retry_errnos=[ESTALE]):
     """ wrapper around calls resilient to errnos.
-    retry in case of ESTALE
+    retry in case of ESTALE by default.
     """
+    nr_tries = 0
     while True:
         try:
             return call(*arg)
@@ -383,6 +418,21 @@ def errno_wrap(call, arg=[], errnos=[]):
             ex = sys.exc_info()[1]
             if ex.errno in errnos:
                 return ex.errno
-            if not ex.errno == ESTALE:
+            if not ex.errno in retry_errnos:
                 raise
-            time.sleep(0.5)  # retry the call
+            nr_tries += 1
+            if nr_tries == GF_OP_RETRIES:
+                # probably a screwed state, cannot do much...
+                logging.warn('reached maximum retries (%s)...' % repr(arg))
+                return
+            time.sleep(0.250)  # retry the call
+
+def lstat(e):
+    try:
+        return os.lstat(e)
+    except (IOError, OSError):
+        ex = sys.exc_info()[1]
+        if ex.errno == ENOENT:
+            return ex.errno
+        else:
+            raise

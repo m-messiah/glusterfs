@@ -14,12 +14,14 @@
 /*dump locks format strings */
 #define RANGE_FMT               "type=%s, whence=%hd, start=%llu, len=%llu"
 #define ENTRY_FMT               "type=%s on basename=%s"
-#define DUMP_GEN_FMT            "pid = %llu, owner=%s, transport=%p, "
+#define DUMP_GEN_FMT            "pid = %llu, owner=%s, client=%p"
 #define GRNTD_AT                "granted at %s"
 #define BLKD_AT                 "blocked at %s"
-#define DUMP_BLKD_FMT           DUMP_GEN_FMT", "BLKD_AT
-#define DUMP_GRNTD_FMT          DUMP_GEN_FMT", "GRNTD_AT
-#define DUMP_BLKD_GRNTD_FMT     DUMP_GEN_FMT", "BLKD_AT", "GRNTD_AT
+#define CONN_ID                 "connection-id=%s"
+#define DUMP_BLKD_FMT           DUMP_GEN_FMT", "CONN_ID", "BLKD_AT
+#define DUMP_GRNTD_FMT          DUMP_GEN_FMT", "CONN_ID", "GRNTD_AT
+#define DUMP_BLKD_GRNTD_FMT     DUMP_GEN_FMT", "CONN_ID", "BLKD_AT", "GRNTD_AT
+
 #define ENTRY_BLKD_FMT          ENTRY_FMT", "DUMP_BLKD_FMT
 #define ENTRY_GRNTD_FMT         ENTRY_FMT", "DUMP_GRNTD_FMT
 #define ENTRY_BLKD_GRNTD_FMT    ENTRY_FMT", "DUMP_BLKD_GRNTD_FMT
@@ -29,8 +31,10 @@
 #define RANGE_BLKD_GRNTD_FMT    RANGE_FMT", "DUMP_BLKD_GRNTD_FMT
 
 #define SET_FLOCK_PID(flock, lock) ((flock)->l_pid = lock->client_pid)
+
+
 posix_lock_t *
-new_posix_lock (struct gf_flock *flock, void *transport, pid_t client_pid,
+new_posix_lock (struct gf_flock *flock, client_t *client, pid_t client_pid,
                 gf_lkowner_t *owner, fd_t *fd);
 
 pl_inode_t *
@@ -63,7 +67,8 @@ pl_dom_list_t *
 get_domain (pl_inode_t *pl_inode, const char *volume);
 
 void
-grant_blocked_inode_locks (xlator_t *this, pl_inode_t *pl_inode, pl_dom_list_t *dom);
+grant_blocked_inode_locks (xlator_t *this, pl_inode_t *pl_inode,
+                           pl_dom_list_t *dom);
 
 void
 __delete_inode_lock (pl_inode_lock_t *lock);
@@ -73,7 +78,7 @@ __pl_inodelk_unref (pl_inode_lock_t *lock);
 
 void
 grant_blocked_entry_locks (xlator_t *this, pl_inode_t *pl_inode,
-                           pl_entry_lock_t *unlocked, pl_dom_list_t *dom);
+                           pl_dom_list_t *dom);
 
 void pl_update_refkeeper (xlator_t *this, inode_t *inode);
 
@@ -143,6 +148,11 @@ pl_verify_reservelk (xlator_t *this, pl_inode_t *pl_inode,
                      posix_lock_t *lock, int can_block);
 int
 pl_reserve_unlock (xlator_t *this, pl_inode_t *pl_inode, posix_lock_t *reqlock);
+
 uint32_t
 check_entrylk_on_basename (xlator_t *this, inode_t *parent, char *basename);
+
+void __pl_inodelk_unref (pl_inode_lock_t *lock);
+void __pl_entrylk_unref (pl_entry_lock_t *lock);
+
 #endif /* __COMMON_H__ */

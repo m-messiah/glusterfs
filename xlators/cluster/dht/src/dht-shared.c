@@ -607,7 +607,8 @@ dht_init (xlator_t *this)
         }
 
         GF_OPTION_INIT ("xattr-name", conf->xattr_name, str, err);
-        gf_asprintf (&conf->link_xattr_name, "%s.linkto", conf->xattr_name);
+        gf_asprintf (&conf->link_xattr_name, "%s."DHT_LINKFILE_STR,
+                     conf->xattr_name);
         gf_asprintf (&conf->wild_xattr_name, "%s*", conf->xattr_name);
         if (!conf->link_xattr_name || !conf->wild_xattr_name) {
                 goto err;
@@ -689,7 +690,8 @@ struct volume_options options[] = {
           .type = GF_OPTION_TYPE_INT,
           .min  = 1,
           .validate = GF_OPT_VALIDATE_MIN,
-          .description = "Specifies the directory layout spread."
+          .description = "Specifies the directory layout spread. Takes number "
+                         "of subvolumes as default value."
         },
         { .key  = {"decommissioned-bricks"},
           .type = GF_OPTION_TYPE_ANY,

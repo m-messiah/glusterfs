@@ -51,7 +51,7 @@ pl_new_fdctx ()
 
         fdctx = GF_CALLOC (1, sizeof (*fdctx),
                            gf_locks_mt_pl_fdctx_t);
-        GF_VALIDATE_OR_GOTO (POSIX_LOCKS, fdctx, out);
+        GF_VALIDATE_OR_GOTO ("posix-locks", fdctx, out);
 
         INIT_LIST_HEAD (&fdctx->locks_list);
 
@@ -66,7 +66,7 @@ pl_check_n_create_fdctx (xlator_t *this, fd_t *fd)
         uint64_t    tmp   = 0;
         pl_fdctx_t *fdctx = NULL;
 
-        GF_VALIDATE_OR_GOTO (POSIX_LOCKS, this, out);
+        GF_VALIDATE_OR_GOTO ("posix-locks", this, out);
         GF_VALIDATE_OR_GOTO (this->name, fd, out);
 
         LOCK (&fd->lock);
@@ -119,7 +119,7 @@ pl_truncate_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
 
 static int
 truncate_allowed (pl_inode_t *pl_inode,
-                  void *transport, pid_t client_pid,
+                  client_t *client, pid_t client_pid,
                   gf_lkowner_t *owner, off_t offset)
 {
         posix_lock_t *l = NULL;
@@ -128,7 +128,7 @@ truncate_allowed (pl_inode_t *pl_inode,
 
         region.fl_start   = offset;
         region.fl_end     = LLONG_MAX;
-        region.transport  = transport;
+        region.client     = client;
         region.client_pid = client_pid;
         region.owner      = *owner;
 
@@ -139,7 +139,7 @@ truncate_allowed (pl_inode_t *pl_inode,
                             && locks_overlap (&region, l)
                             && !same_owner (&region, l)) {
                                 ret = 0;
-                                gf_log (POSIX_LOCKS, GF_LOG_TRACE, "Truncate "
+                                gf_log ("posix-locks", GF_LOG_TRACE, "Truncate "
                                         "allowed");
                                 break;
                         }
@@ -186,7 +186,7 @@ truncate_stat_cbk (call_frame_t *frame, void *cookie, xlator_t *this,
 
         if (priv->mandatory
             && pl_inode->mandatory
-            && !truncate_allowed (pl_inode, frame->root->trans,
+            && !truncate_allowed (pl_inode, frame->root->client,
                                   frame->root->pid, &frame->root->lk_owner,
                                   local->offset)) {
                 op_ret   = -1;
@@ -347,7 +347,7 @@ delete_locks_of_fd (xlator_t *this, pl_inode_t *pl_inode, fd_t *fd)
 
 static void
 __delete_locks_of_owner (pl_inode_t *pl_inode,
-                         void *transport, gf_lkowner_t *owner)
+                         client_t *client, gf_lkowner_t *owner)
 {
         posix_lock_t *tmp = NULL;
         posix_lock_t *l = NULL;
@@ -357,7 +357,7 @@ __delete_locks_of_owner (pl_inode_t *pl_inode,
         list_for_each_entry_safe (l, tmp, &pl_inode->ext_list, list) {
                 if (l->blocked)
                         continue;
-                if ((l->transport == transport) &&
+                if ((l->client == client) &&
                     is_same_lkowner (&l->owner, owner)) {
                         gf_log ("posix-locks", GF_LOG_TRACE,
                                 " Flushing lock"
@@ -810,7 +810,7 @@ pl_migrate_locks (call_frame_t *frame, fd_t *newfd, uint64_t oldfd_num,
                 list_for_each_entry (l, &pl_inode->ext_list, list) {
                         if (l->fd_num == oldfd_num) {
                                 l->fd_num = newfd_num;
-                                l->transport = frame->root->trans;
+                                l->client = frame->root->client;
                         }
                 }
         }
@@ -983,7 +983,7 @@ pl_flush (call_frame_t *frame, xlator_t *this,
         }
         pthread_mutex_lock (&pl_inode->mutex);
         {
-                __delete_locks_of_owner (pl_inode, frame->root->trans,
+                __delete_locks_of_owner (pl_inode, frame->root->client,
                                          &frame->root->lk_owner);
         }
         pthread_mutex_unlock (&pl_inode->mutex);
@@ -1178,7 +1178,7 @@ pl_readv (call_frame_t *frame, xlator_t *this,
         if (priv->mandatory && pl_inode->mandatory) {
                 region.fl_start   = offset;
                 region.fl_end     = offset + size - 1;
-                region.transport  = frame->root->trans;
+                region.client     = frame->root->client;
                 region.fd_num     = fd_to_fdnum(fd);
                 region.client_pid = frame->root->pid;
                 region.owner      = frame->root->lk_owner;
@@ -1272,7 +1272,7 @@ pl_writev (call_frame_t *frame, xlator_t *this, fd_t *fd,
         if (priv->mandatory && pl_inode->mandatory) {
                 region.fl_start   = offset;
                 region.fl_end     = offset + iov_length (vector, count) - 1;
-                region.transport  = frame->root->trans;
+                region.client     = frame->root->client;
                 region.fd_num     = fd_to_fdnum(fd);
                 region.client_pid = frame->root->pid;
                 region.owner      = frame->root->lk_owner;
@@ -1353,7 +1353,7 @@ lock_dup (posix_lock_t *lock)
 {
         posix_lock_t *new_lock = NULL;
 
-        new_lock = new_posix_lock (&lock->user_flock, lock->transport,
+        new_lock = new_posix_lock (&lock->user_flock, lock->client,
                                    lock->client_pid, &lock->owner,
                                    (fd_t *)lock->fd_num);
         return new_lock;
@@ -1513,8 +1513,6 @@ int
 pl_lk (call_frame_t *frame, xlator_t *this,
        fd_t *fd, int32_t cmd, struct gf_flock *flock, dict_t *xdata)
 {
-        void         *transport  = NULL;
-        pid_t         client_pid = 0;
         pl_inode_t   *pl_inode   = NULL;
         int           op_ret     = 0;
         int           op_errno   = 0;
@@ -1522,9 +1520,6 @@ pl_lk (call_frame_t *frame, xlator_t *this,
         posix_lock_t *reqlock    = NULL;
         posix_lock_t *conf       = NULL;
         int           ret        = 0;
-
-        transport  = frame->root->trans;
-        client_pid = frame->root->pid;
 
         if ((flock->l_start < 0) || (flock->l_len < 0)) {
                 op_ret = -1;
@@ -1539,7 +1534,7 @@ pl_lk (call_frame_t *frame, xlator_t *this,
                 goto unwind;
         }
 
-        reqlock = new_posix_lock (flock, transport, client_pid,
+        reqlock = new_posix_lock (flock, frame->root->client, frame->root->pid,
                                   &frame->root->lk_owner, fd);
 
         if (!reqlock) {
@@ -1764,6 +1759,7 @@ pl_forget (xlator_t *this,
                                         list_del_init (&entry_l->domain_list);
 
                                         GF_FREE ((char *)entry_l->basename);
+                                        GF_FREE (entry_l->connection_id);
                                         GF_FREE (entry_l);
                                 }
 
@@ -1797,6 +1793,7 @@ pl_forget (xlator_t *this,
 
                 STACK_UNWIND_STRICT (entrylk, entry_l->frame, -1, 0, NULL);
                 GF_FREE ((char *)entry_l->basename);
+                GF_FREE (entry_l->connection_id);
                 GF_FREE (entry_l);
 
         }
@@ -2161,8 +2158,8 @@ out:
 
 void
 pl_dump_lock (char *str, int size, struct gf_flock *flock,
-              gf_lkowner_t *owner, void *trans, time_t *granted_time,
-              time_t *blkd_time, gf_boolean_t active)
+              gf_lkowner_t *owner, void *trans, char *conn_id,
+              time_t *granted_time, time_t *blkd_time, gf_boolean_t active)
 {
         char  *type_str    = NULL;
         char   granted[32] = {0,};
@@ -2190,7 +2187,7 @@ pl_dump_lock (char *str, int size, struct gf_flock *flock,
                                   (unsigned long long) flock->l_start,
                                   (unsigned long long) flock->l_len,
                                   (unsigned long long) flock->l_pid,
-                                  lkowner_utoa (owner), trans,
+                                  lkowner_utoa (owner), trans, conn_id,
                                   ctime_r (granted_time, granted));
                 } else {
                         snprintf (str, size, RANGE_BLKD_GRNTD_FMT,
@@ -2198,7 +2195,7 @@ pl_dump_lock (char *str, int size, struct gf_flock *flock,
                                   (unsigned long long) flock->l_start,
                                   (unsigned long long) flock->l_len,
                                   (unsigned long long) flock->l_pid,
-                                  lkowner_utoa (owner), trans,
+                                  lkowner_utoa (owner), trans, conn_id,
                                   ctime_r (blkd_time, blocked),
                                   ctime_r (granted_time, granted));
                 }
@@ -2209,7 +2206,7 @@ pl_dump_lock (char *str, int size, struct gf_flock *flock,
                           (unsigned long long) flock->l_start,
                           (unsigned long long) flock->l_len,
                           (unsigned long long) flock->l_pid,
-                          lkowner_utoa (owner), trans,
+                          lkowner_utoa (owner), trans, conn_id,
                           ctime_r (blkd_time, blocked));
         }
 
@@ -2246,14 +2243,16 @@ __dump_entrylks (pl_inode_t *pl_inode)
                                           lock->type == ENTRYLK_RDLCK ? "ENTRYLK_RDLCK" :
                                           "ENTRYLK_WRLCK", lock->basename,
                                           (unsigned long long) lock->client_pid,
-                                          lkowner_utoa (&lock->owner), lock->trans,
+                                          lkowner_utoa (&lock->owner), lock->client,
+                                          lock->connection_id,
                                           ctime_r (&lock->granted_time.tv_sec, granted));
                         } else {
                                 snprintf (tmp, 256, ENTRY_BLKD_GRNTD_FMT,
                                           lock->type == ENTRYLK_RDLCK ? "ENTRYLK_RDLCK" :
                                           "ENTRYLK_WRLCK", lock->basename,
                                           (unsigned long long) lock->client_pid,
-                                          lkowner_utoa (&lock->owner), lock->trans,
+                                          lkowner_utoa (&lock->owner), lock->client,
+                                          lock->connection_id,
                                           ctime_r (&lock->blkd_time.tv_sec, blocked),
                                           ctime_r (&lock->granted_time.tv_sec, granted));
                         }
@@ -2272,7 +2271,8 @@ __dump_entrylks (pl_inode_t *pl_inode)
                                   lock->type == ENTRYLK_RDLCK ? "ENTRYLK_RDLCK" :
                                   "ENTRYLK_WRLCK", lock->basename,
                                   (unsigned long long) lock->client_pid,
-                                  lkowner_utoa (&lock->owner), lock->trans,
+                                  lkowner_utoa (&lock->owner), lock->client,
+                                  lock->connection_id,
                                   ctime_r (&lock->blkd_time.tv_sec, blocked));
 
                         gf_proc_dump_write(key, tmp);
@@ -2323,7 +2323,7 @@ __dump_inodelks (pl_inode_t *pl_inode)
                         SET_FLOCK_PID (&lock->user_flock, lock);
                         pl_dump_lock (tmp, 256, &lock->user_flock,
                                       &lock->owner,
-                                      lock->transport,
+                                      lock->client, lock->connection_id,
                                       &lock->granted_time.tv_sec,
                                       &lock->blkd_time.tv_sec,
                                       _gf_true);
@@ -2340,7 +2340,7 @@ __dump_inodelks (pl_inode_t *pl_inode)
                         SET_FLOCK_PID (&lock->user_flock, lock);
                         pl_dump_lock (tmp, 256, &lock->user_flock,
                                       &lock->owner,
-                                      lock->transport,
+                                      lock->client, lock->connection_id,
                                       0, &lock->blkd_time.tv_sec,
                                       _gf_false);
                         gf_proc_dump_write(key, tmp);
@@ -2381,7 +2381,7 @@ __dump_posixlks (pl_inode_t *pl_inode)
                                      count,
                                      lock->blocked ? "BLOCKED" : "ACTIVE");
               pl_dump_lock (tmp, 256, &lock->user_flock,
-                            &lock->owner, lock->transport,
+                            &lock->owner, lock->client, NULL,
                             &lock->granted_time.tv_sec, &lock->blkd_time.tv_sec,
                             (lock->blocked)? _gf_false: _gf_true);
               gf_proc_dump_write(key, tmp);
@@ -2505,6 +2505,79 @@ mem_acct_init (xlator_t *this)
         return ret;
 }
 
+
+pl_ctx_t*
+pl_ctx_get (client_t *client, xlator_t *xlator)
+{
+        void *tmp = NULL;
+        pl_ctx_t *ctx = NULL;
+
+        client_ctx_get (client, xlator, &tmp);
+
+        ctx = tmp;
+
+        if (ctx != NULL)
+                goto out;
+
+        ctx = GF_CALLOC (1, sizeof (pl_ctx_t), gf_locks_mt_posix_lock_t);
+
+        if (ctx == NULL)
+                goto out;
+
+        pthread_mutex_init (&ctx->lock, NULL);
+	INIT_LIST_HEAD (&ctx->inodelk_lockers);
+	INIT_LIST_HEAD (&ctx->entrylk_lockers);
+
+        if (client_ctx_set (client, xlator, ctx) != 0) {
+                pthread_mutex_destroy (&ctx->lock);
+                GF_FREE (ctx);
+                ctx = NULL;
+        }
+out:
+        return ctx;
+}
+
+
+static int
+pl_client_disconnect_cbk (xlator_t *this, client_t *client)
+{
+        pl_ctx_t *pl_ctx = NULL;
+
+	pl_ctx = pl_ctx_get (client, this);
+
+	pl_inodelk_client_cleanup (this, pl_ctx);
+
+	pl_entrylk_client_cleanup (this, pl_ctx);
+
+	return 0;
+}
+
+
+static int
+pl_client_destroy_cbk (xlator_t *this, client_t *client)
+{
+        void     *tmp    = NULL;
+        pl_ctx_t *pl_ctx = NULL;
+
+	pl_client_disconnect_cbk (this, client);
+
+        client_ctx_del (client, this, &tmp);
+
+        if (tmp == NULL)
+                return 0;
+
+        pl_ctx = tmp;
+
+	GF_ASSERT (list_empty(&pl_ctx->inodelk_lockers));
+	GF_ASSERT (list_empty(&pl_ctx->entrylk_lockers));
+
+	pthread_mutex_destroy (&pl_ctx->lock);
+        GF_FREE (pl_ctx);
+
+        return 0;
+}
+
+
 int
 init (xlator_t *this)
 {
@@ -2533,7 +2606,7 @@ init (xlator_t *this)
                 gf_log (this->name, GF_LOG_CRITICAL,
                         "'locks' translator is not loaded over a storage "
                         "translator");
-                goto out;;
+                goto out;
         }
 
         priv = GF_CALLOC (1, sizeof (*priv),
@@ -2635,9 +2708,11 @@ struct xlator_dumpops dumpops = {
 };
 
 struct xlator_cbks cbks = {
-        .forget      = pl_forget,
-        .release     = pl_release,
-        .releasedir  = pl_releasedir,
+        .forget            = pl_forget,
+        .release           = pl_release,
+        .releasedir        = pl_releasedir,
+        .client_destroy    = pl_client_destroy_cbk,
+        .client_disconnect = pl_client_disconnect_cbk,
 };
 
 

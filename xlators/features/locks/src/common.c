@@ -35,6 +35,7 @@ __insert_and_merge (pl_inode_t *pl_inode, posix_lock_t *lock);
 static int
 pl_send_prelock_unlock (xlator_t *this, pl_inode_t *pl_inode,
                         posix_lock_t *old_lock);
+
 static pl_dom_list_t *
 __allocate_domain (const char *volume)
 {
@@ -75,8 +76,8 @@ get_domain (pl_inode_t *pl_inode, const char *volume)
 {
         pl_dom_list_t *dom = NULL;
 
-        GF_VALIDATE_OR_GOTO (POSIX_LOCKS, pl_inode, out);
-        GF_VALIDATE_OR_GOTO (POSIX_LOCKS, volume, out);
+        GF_VALIDATE_OR_GOTO ("posix-locks", pl_inode, out);
+        GF_VALIDATE_OR_GOTO ("posix-locks", volume, out);
 
         pthread_mutex_lock (&pl_inode->mutex);
         {
@@ -92,9 +93,9 @@ get_domain (pl_inode_t *pl_inode, const char *volume)
 unlock:
         pthread_mutex_unlock (&pl_inode->mutex);
         if (dom) {
-                gf_log (POSIX_LOCKS, GF_LOG_TRACE, "Domain %s found", volume);
+                gf_log ("posix-locks", GF_LOG_TRACE, "Domain %s found", volume);
         } else {
-                gf_log (POSIX_LOCKS, GF_LOG_TRACE, "Domain %s not found", volume);
+                gf_log ("posix-locks", GF_LOG_TRACE, "Domain %s not found", volume);
         }
 out:
         return dom;
@@ -138,7 +139,7 @@ pl_print_locker (char *str, int size, xlator_t *this, call_frame_t *frame)
         snprintf (str, size, "Pid=%llu, lk-owner=%s, Client=%p, Frame=%llu",
                   (unsigned long long) frame->root->pid,
                   lkowner_utoa (&frame->root->lk_owner),
-                  frame->root->trans,
+                  frame->root->client,
                   (unsigned long long) frame->root->unique);
 }
 
@@ -462,14 +463,14 @@ unlock:
 
 /* Create a new posix_lock_t */
 posix_lock_t *
-new_posix_lock (struct gf_flock *flock, void *transport, pid_t client_pid,
+new_posix_lock (struct gf_flock *flock, client_t *client, pid_t client_pid,
                 gf_lkowner_t *owner, fd_t *fd)
 {
         posix_lock_t *lock = NULL;
 
-        GF_VALIDATE_OR_GOTO (POSIX_LOCKS, flock, out);
-        GF_VALIDATE_OR_GOTO (POSIX_LOCKS, transport, out);
-        GF_VALIDATE_OR_GOTO (POSIX_LOCKS, fd, out);
+        GF_VALIDATE_OR_GOTO ("posix-locks", flock, out);
+        GF_VALIDATE_OR_GOTO ("posix-locks", client, out);
+        GF_VALIDATE_OR_GOTO ("posix-locks", fd, out);
 
         lock = GF_CALLOC (1, sizeof (posix_lock_t),
                           gf_locks_mt_posix_lock_t);
@@ -485,7 +486,7 @@ new_posix_lock (struct gf_flock *flock, void *transport, pid_t client_pid,
         else
                 lock->fl_end = flock->l_start + flock->l_len - 1;
 
-        lock->transport  = transport;
+        lock->client     = client;
         lock->fd_num     = fd_to_fdnum (fd);
         lock->fd         = fd;
         lock->client_pid = client_pid;
@@ -565,7 +566,7 @@ same_owner (posix_lock_t *l1, posix_lock_t *l2)
 {
 
         return (is_same_lkowner (&l1->owner, &l2->owner) &&
-                (l1->transport  == l2->transport));
+                (l1->client == l2->client));
 
 }
 
@@ -694,7 +695,7 @@ subtract_locks (posix_lock_t *big, posix_lock_t *small)
         }
 
         GF_ASSERT (0);
-        gf_log (POSIX_LOCKS, GF_LOG_ERROR, "Unexpected case in subtract_locks");
+        gf_log ("posix-locks", GF_LOG_ERROR, "Unexpected case in subtract_locks");
 
 out:
         if (v.locks[0]) {
@@ -812,7 +813,7 @@ __insert_and_merge (pl_inode_t *pl_inode, posix_lock_t *lock)
                                 sum = add_locks (lock, conf);
 
                                 sum->fl_type    = lock->fl_type;
-                                sum->transport  = lock->transport;
+                                sum->client     = lock->client;
                                 sum->fd_num     = lock->fd_num;
                                 sum->client_pid = lock->client_pid;
                                 sum->owner      = lock->owner;
@@ -830,7 +831,7 @@ __insert_and_merge (pl_inode_t *pl_inode, posix_lock_t *lock)
                                 sum = add_locks (lock, conf);
 
                                 sum->fl_type    = conf->fl_type;
-                                sum->transport  = conf->transport;
+                                sum->client     = conf->client;
                                 sum->fd_num     = conf->fd_num;
                                 sum->client_pid = conf->client_pid;
                                 sum->owner      = conf->owner;
@@ -988,7 +989,7 @@ pl_send_prelock_unlock (xlator_t *this, pl_inode_t *pl_inode,
         flock.l_len    = old_lock->user_flock.l_len;
 
 
-        unlock_lock = new_posix_lock (&flock, old_lock->transport,
+        unlock_lock = new_posix_lock (&flock, old_lock->client,
                                       old_lock->client_pid, &old_lock->owner,
                                       old_lock->fd);
         GF_VALIDATE_OR_GOTO (this->name, unlock_lock, out);
@@ -1097,3 +1098,4 @@ pl_getlk (pl_inode_t *pl_inode, posix_lock_t *lock)
 
         return conf;
 }
+
