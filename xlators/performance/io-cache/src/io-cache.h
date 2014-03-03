@@ -174,6 +174,7 @@ struct ioc_table {
         int32_t          cache_timeout;
         int32_t          max_pri;
         struct mem_pool  *mem_pool;
+        uint32_t         cache_type;
 };
 
 typedef struct ioc_table ioc_table_t;

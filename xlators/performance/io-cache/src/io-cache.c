@@ -23,7 +23,6 @@
 #include <assert.h>
 #include <sys/time.h>
 
-int IOC_CACHE_TYPE = 1;
 int ioc_log2_page_size;
 
 uint32_t
@@ -1686,8 +1685,8 @@ reconfigure (xlator_t *this, dict_t *options)
                                 "Not reconfiguring cache-size");
                         goto unlock;
                 }
-                GF_OPTION_RECONF ("cache-type", IOC_CACHE_TYPE,
-                                  options, int32, unlock);
+                GF_OPTION_RECONF ("cache-type", table->cache_type,
+                                  options, uint32, unlock);
                 table->cache_size = cache_size_new;
 
                 ret = 0;
@@ -1750,6 +1749,8 @@ init (xlator_t *this)
                 ret = -1;
                 goto out;
         }
+    
+        GF_OPTION_INIT ("cache_type", table->cache_type, uint32, out);
 
         INIT_LIST_HEAD (&table->priority_list);
         table->max_pri = 1;
