@@ -2158,7 +2158,7 @@ struct volume_options options[] = {
           .description = "Maximum file size which would be cached by the "
           "io-cache translator."
         },
-        { .key  = {"cache-type"},
+        { .key  = {"cache_type"},
           .type = GF_OPTION_TYPE_INT,
           .min  = 0,
           .max  = 4,
