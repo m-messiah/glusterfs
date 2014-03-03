@@ -33,6 +33,11 @@
 #define IOC_PAGE_SIZE    (1024 * 128)   /* 128KB */
 #define IOC_CACHE_SIZE   (32 * 1024 * 1024)
 #define IOC_PAGE_TABLE_BUCKET_COUNT 1
+#define IOC_CACHE_RAND  0
+#define IOC_CACHE_LRU   1
+#define IOC_CACHE_MRU   2
+#define IOC_CACHE_FIFO  3
+#define IOC_CACHE_LFU   4
 
 struct ioc_table;
 struct ioc_local;

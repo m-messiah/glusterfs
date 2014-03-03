@@ -53,10 +53,11 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
         page = rbthash_get (ioc_inode->cache.page_table, &rounded_offset,
                             sizeof (rounded_offset));
 
-        if (page != NULL) {
-                /* push the page to the end of the lru list */
-                list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
-        }
+        if (IOC_CACHE_TYPE == IOC_CACHE_LRU || IOC_CACHE_TYPE == IOC_CACHE_MRU)
+            if (page != NULL) {
+                    /* push the page to the end of the lru list */
+                    list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
+            }
 
 out:
         return page;
@@ -210,6 +211,7 @@ ioc_prune (ioc_table_t *table)
                 size_to_prune = table->cache_used - table->cache_size;
                 /* take out the least recently used inode */
                 for (index=0; index < table->max_pri; index++) {
+                    if (IOC_CACHE_TYPE == IOC_CACHE_LRU || IOC_CACHE_TYPE == IOC_CACHE_FIFO) {
                         list_for_each_entry_safe (curr, next_ioc_inode,
                                                   &table->inode_lru[index],
                                                   inode_lru) {
@@ -229,6 +231,34 @@ ioc_prune (ioc_table_t *table)
 
                         if (size_pruned >= size_to_prune)
                                 break;
+                    } /* IOC_CACHE_LRU or IOC_CACHE_FIFO */
+                    else if (IOC_CACHE_TYPE == IOC_CACHE_MRU) {
+                        list_for_each_entry_safe_reverse(curr, next_ioc_inode,
+                                                         &table->inode_lru[index],
+                                                         inode_lru) {
+                            /* prune page-by-page for this inode, till
+                             * we reach the equilibrium */
+                            ioc_inode_lock (curr);
+                            {
+                                __ioc_inode_prune (curr, &size_pruned,
+                                                   size_to_prune,
+                                                   index);
+                            }
+                            ioc_inode_unlock (curr);
+                            
+                            if (size_pruned >= size_to_prune)
+                                break;
+                        } /* list_for_each_entry_safe_reverse (curr...) */
+                        
+                        if (size_pruned >= size_to_prune)
+                            break;
+                    } /* IOC_CACHE_MRU */
+                    else if (IOC_CACHE_TYPE == IOC_CACHE_LFU) {
+                        
+                    } /* IOC_CACHE_LFU */
+                    else if (IOC_CACHE_TYPE == IOC_CACHE_RAND) {
+                        
+                    } /* IOC_CACHE_RAND */
                 } /* for(index=0;...) */
 
         } /* ioc_inode_table locked region end */

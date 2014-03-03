@@ -9,6 +9,7 @@ ltmain.sh
 Makefile.in
 missing
 py-compile
+.idea
 *.sw?
 *~
 *.lo

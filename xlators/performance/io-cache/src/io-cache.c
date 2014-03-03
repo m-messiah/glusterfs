@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <sys/time.h>
 
+int IOC_CACHE_TYPE = 1;
 int ioc_log2_page_size;
 
 uint32_t
@@ -1685,6 +1686,8 @@ reconfigure (xlator_t *this, dict_t *options)
                                 "Not reconfiguring cache-size");
                         goto unlock;
                 }
+                GF_OPTION_RECONF ("cache-type", IOC_CACHE_TYPE,
+                                  options, int32, unlock);
                 table->cache_size = cache_size_new;
 
                 ret = 0;
@@ -2153,6 +2156,15 @@ struct volume_options options[] = {
           .default_value = "0",
           .description = "Maximum file size which would be cached by the "
           "io-cache translator."
+        },
+        { .key  = {"cache-type"},
+          .type = GF_OPTION_TYPE_INT,
+          .min  = 0,
+          .max  = 4,
+          .default_value = "1",
+          .description = "Type of cache prune which would be used by the "
+          "io-cache translator. RAND = 0, LRU = 1, MRU = 2, FIFO = 3, "
+          "LFU = 4."
         },
         { .key = {NULL} },
 };
