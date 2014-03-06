@@ -4,7 +4,7 @@
 volume node1
   type protocol/client
   option transport-type tcp/client
-  option remote-host muzafarov
+  option remote-host front-test
   option remote-subvolume brick1
 end-volume
 
@@ -14,7 +14,7 @@ end-volume
 volume node2
   type protocol/client
   option transport-type tcp/client
-  option remote-host muzafarov
+  option remote-host front-test
   option remote-subvolume brick2
 end-volume
 
@@ -24,7 +24,7 @@ end-volume
 volume node3
   type protocol/client
   option transport-type tcp/client
-  option remote-host muzafarov
+  option remote-host front-test
   option remote-subvolume brick3
 end-volume
 
@@ -37,4 +37,13 @@ volume clusterA
 #  option scheduler switch
 #  option local-volume-name node1
 #  option switch.case *.remote:node2;*.local:node1;*:node3
+end-volume
+
+volume io-cache
+	type performance/io-cache
+		option cache-size 64MB
+		option priority *:0
+		option cache-timeout 1
+		option cache_type 1
+	subvolumes clusterA
 end-volume

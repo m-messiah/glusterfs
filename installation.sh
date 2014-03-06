@@ -19,6 +19,7 @@ make clean || CLEAN="make clean"
 --enable-georeplication \
 #--disable-bdb \
 --docdir=/usr/share/doc/glusterfs \
+LDFLAGS=-L/usr/local/lib \
 CFLAGS="-O3 -pipe -mmmx -msse2 -msse3 -mssse3" \
 CXXFLAGS="${CFLAGS}"
 $CLEAN
