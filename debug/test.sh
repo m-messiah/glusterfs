@@ -7,7 +7,7 @@ THREADS=1
 TRIES=10000
 FILES=$(( TRIES / 50))
 
-for SIZE in 1 10 100 1k 4k 10k 100k 1M 10M 100M 1G 10G
+for SIZE in 1k 10k 100k 1M 10M 40M 80M 100M 1G
 do
 	for i in `seq 1 $FILES`
 	do
