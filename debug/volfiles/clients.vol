@@ -44,6 +44,6 @@ volume io-cache
 		option cache-size 64MB
 		option priority *:0
 		option cache-timeout 1
-		option cache_type 1
+		option cache_type 2
 	subvolumes clusterA
 end-volume
