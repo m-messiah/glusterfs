@@ -2,16 +2,48 @@
 import matplotlib
 matplotlib.use('svg')
 import matplotlib.pyplot as plt
+from numpy import arange
 j=0
-for i in ["1k", "4k", "10k", "100k", "1M", "10M", "40M", "80M", "100M", "1024M"]:
-	for t in ["1000", "10000"]:
-		try:
-			plt.figure(j)
-			x=map(float, open("./result/FIFO/1*" + t + "*" + i + ".txt", 'r').readlines())
-			plt.plot(range(len(x)), x, 'r')
-			plt.grid(True)
-			plt.savefig("./result/FIFO/1*" + t + "*" + i + ".svg")
-			print("Saved " + i)
-			j+=1
-		except:
-			pass
+#plt.xkcd()
+for rule in ["seq", "rand"]:
+    for i in ["1M", "10M", "40M", "100M", "200M"]:
+        for t in [1000, 10000]:
+            try:
+                plt.figure(j)
+                for algo, color in [("LRU", ("r", 1)),
+                                    ("MRU", ("g", 0.7)),
+                                    ("FIFO", ("b", 0.5))]:
+                    print algo
+                    x=map(float,
+                        open("./result/" + algo + "/"
+                             + rule + "1*" + str(t) + "*" + i + ".txt",
+                             'r').readlines())
+                    plt.plot(range(len(x)), x,
+                             color[0], label=algo, alpha=color[1])
+
+                plt.ylabel("Sec/file")
+                if i[-1] == "k":
+                    y = 0.02
+                elif i == "1M":
+                    y = 0.05
+                elif i == "10M":
+                    y = 0.2
+                elif i == "40M":
+                    y = 0.8
+                elif i == "80M":
+                    y = 1.2
+                elif i == "100M":
+                    y = 1.5
+                else:
+                    y = 18
+                plt.ylim(0, y)
+                plt.yticks(arange(0, y, y/10))
+                plt.xticks(arange(0, t, t/10))
+                plt.grid(True, which='both', axis='both')
+                plt.legend()
+                plt.savefig("./result/img/" + rule
+                            + "1*" + str(t) + "*" + i + ".svg")
+                print("Saved " + i + " * " + str(t))
+                j+=1
+            except Exception as e:
+                print e
