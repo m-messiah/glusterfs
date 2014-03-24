@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ALGO="LRU"
+ALGO="FIFO"
 mkdir -p ./result/$ALGO
 
 THREADS=1
