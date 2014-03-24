@@ -6,7 +6,7 @@ from numpy import arange
 j=0
 #plt.xkcd()
 for rule in ["seq", "rand"]:
-    for i in ["1M", "10M", "40M", "100M", "200M"]:
+    for i in ["10k", "100k", "200k", "1M", "10M", "40M"]:
         for t in [1000, 10000]:
             try:
                 plt.figure(j)
@@ -28,19 +28,14 @@ for rule in ["seq", "rand"]:
                     y = 0.05
                 elif i == "10M":
                     y = 0.2
-                elif i == "40M":
-                    y = 0.8
-                elif i == "80M":
-                    y = 1.2
-                elif i == "100M":
-                    y = 1.5
                 else:
-                    y = 18
+                    y = 0.8
                 plt.ylim(0, y)
                 plt.yticks(arange(0, y, y/10))
                 plt.xticks(arange(0, t, t/10))
                 plt.grid(True, which='both', axis='both')
                 plt.legend()
+                plt.title(rule.capitalize())
                 plt.savefig("./result/img/" + rule
                             + "1*" + str(t) + "*" + i + ".svg")
                 print("Saved " + i + " * " + str(t))
