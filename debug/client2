@@ -1,1 +1,1 @@
-glusterfs --volfile=./volfiles/client${1}.vol /d
+glusterfs --volfile=./volfiles/client2.vol /d2
