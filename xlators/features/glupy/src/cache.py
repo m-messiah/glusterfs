@@ -37,6 +37,9 @@ class Cache(object):
         if key in self.table:
             self.table[key]["data"] = data
             return 0
+        else:
+            self.table[key] = {"data": data}
+            return 0
         return 1
 
     def remove(self, key):
@@ -159,8 +162,6 @@ class xlator(Translator):
                   "*postparent={4:s}").format(unique, gfid,
                                               op_ret, statstr,
                                               postparentstr)
-            self.cache.set_attr(gfid, statstr)
-            # TODO: cache revalidate
         else:
             gfid = self.gfids[key]
             print("GLUPY TRACE LOOKUP CBK- {0:d}: gfid={1:s};"
@@ -234,7 +235,7 @@ class xlator(Translator):
         unique = dl.get_rootunique(frame)
         key = dl.get_id(frame)
         gfid = self.gfids[key]
-        self.cache.set_data(key, fd)
+        self.cache.set_data(gfid, fd)
         print("GLUPY TRACE OPEN CBK- {0:d}: gfid={1:s}; op_ret={2:d}; "
               "op_errno={3:d}; *fd={4:s}").format(unique, gfid,
                                                   op_ret, op_errno, fd)
