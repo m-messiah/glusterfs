@@ -159,7 +159,7 @@ class xlator(Translator):
                   "*postparent={4:s}").format(unique, gfid,
                                               op_ret, statstr,
                                               postparentstr)
-            self.cache.set_attr(key, statstr)
+            self.cache.set_attr(gfid, statstr)
             # TODO: cache revalidate
         else:
             gfid = self.gfids[key]
@@ -211,6 +211,7 @@ class xlator(Translator):
         unique = dl.get_rootunique(frame)
         key = dl.get_id(frame)
         gfid = uuid2str(loc.contents.inode.contents.gfid)
+        print self.cache.table
         if gfid in self.cache:
             print(
                 "GLUPY CACHE OPEN FOP- {0:d}: gfid={1:s}; path={2:s}; "
