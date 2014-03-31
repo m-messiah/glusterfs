@@ -219,7 +219,9 @@ class xlator(Translator):
                 "flags={3:d}; fd={4:s}").format(unique, gfid,
                                                 loc.contents.path, flags,
                                                 fd)
-            print self.cache.get(gfid)
+            # TODO: data instead of fd. How? 
+            dl.unwind_open(frame, 0, this, 0, 0,
+                           self.cache.get(gfid).get("data"), xdata)
             return 0
 
         print("GLUPY TRACE OPEN FOP- {0:d}: gfid={1:s}; path={2:s}; "
@@ -237,8 +239,10 @@ class xlator(Translator):
         gfid = self.gfids[key]
         self.cache.set_data(gfid, fd)
         print("GLUPY TRACE OPEN CBK- {0:d}: gfid={1:s}; op_ret={2:d}; "
-              "op_errno={3:d}; *fd={4:s}").format(unique, gfid,
-                                                  op_ret, op_errno, fd)
+              "cookie={3}; op_errno={4:d}; *fd={5:s}").format(unique, gfid,
+                                                              cookie,
+                                                              op_ret,
+                                                              op_errno, fd)
         del self.gfids[key]
         dl.unwind_open(frame, cookie, this, op_ret, op_errno, fd, xdata)
         return 0
