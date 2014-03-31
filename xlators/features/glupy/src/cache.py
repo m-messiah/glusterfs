@@ -22,13 +22,22 @@ class Cache(object):
     def get(self, key):
         return self.table.get(key)
 
-    def set(self, key, name):
-        if key in self.table or len(self.table) < self.size:
-            self.table[key] = name
-        else:
+    def set_attr(self, key, attr):
+        if key in self.table:
+            self.table[key]["xdata"] = attr
+            return 0
+        elif len(self.table) >= self.size:
             # There is the Place, where Algorithm would be.
             # Now it is random
             del self.table[choice(self.table.keys())]
+        self.table[key] = {"xdata": attr}
+        return 0
+
+    def set_data(self, key, data):
+        if key in self.table:
+            self.table[key]["data"] = data
+            return 0
+        return 1
 
     def remove(self, key):
         del self.table[key]
@@ -150,7 +159,7 @@ class xlator(Translator):
                   "*postparent={4:s}").format(unique, gfid,
                                               op_ret, statstr,
                                               postparentstr)
-
+            self.cache.set_attr(key, statstr)
             # TODO: cache revalidate
         else:
             gfid = self.gfids[key]
@@ -224,12 +233,12 @@ class xlator(Translator):
         unique = dl.get_rootunique(frame)
         key = dl.get_id(frame)
         gfid = self.gfids[key]
+        self.cache.set_data(key, fd)
         print("GLUPY TRACE OPEN CBK- {0:d}: gfid={1:s}; op_ret={2:d}; "
               "op_errno={3:d}; *fd={4:s}").format(unique, gfid,
                                                   op_ret, op_errno, fd)
         del self.gfids[key]
-        dl.unwind_open(frame, cookie, this, op_ret, op_errno, fd,
-                       xdata)
+        dl.unwind_open(frame, cookie, this, op_ret, op_errno, fd, xdata)
         return 0
 
     def readv_fop(self, frame, this, fd, size, offset, flags, xdata):
