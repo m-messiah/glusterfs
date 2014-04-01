@@ -22,25 +22,9 @@ class Cache(object):
     def get(self, key):
         return self.table.get(key)
 
-    def set_attr(self, key, attr):
-        if key in self.table:
-            self.table[key]["xdata"] = attr
-            return 0
-        elif len(self.table) >= self.size:
-            # There is the Place, where Algorithm would be.
-            # Now it is random
-            del self.table[choice(self.table.keys())]
-        self.table[key] = {"xdata": attr}
+    def set(self, key, data):
+        self.table[key] = data
         return 0
-
-    def set_data(self, key, data):
-        if key in self.table:
-            self.table[key]["data"] = data
-            return 0
-        else:
-            self.table[key] = {"data": data}
-            return 0
-        return 1
 
     def remove(self, key):
         del self.table[key]
@@ -139,10 +123,6 @@ class xlator(Translator):
         unique = dl.get_rootunique(frame)
         key = dl.get_id(frame)
         gfid = uuid2str(loc.contents.gfid)
-        if gfid in self.cache:
-            print self.cache.get(gfid).get("xdata")
-            return 0
-
         print("GLUPY TRACE LOOKUP FOP- {0:d}: gfid={1:s}; path={2:s}"
               .format(unique, gfid, loc.contents.path))
         self.gfids[key] = gfid
@@ -219,9 +199,10 @@ class xlator(Translator):
                 "flags={3:d}; fd={4:s}").format(unique, gfid,
                                                 loc.contents.path, flags,
                                                 fd)
-            # TODO: data instead of fd. How? 
-            dl.unwind_open(frame, 0, this, 0, 0,
-                           self.cache.get(gfid).get("data"), xdata)
+            # TODO: data instead of fd. How?
+            cookie, op_ret, op_errno, xdata = self.cache.get(gfid)
+            dl.unwind_open(frame, cookie, this, op_ret, op_errno,
+                           fd, xdata)
             return 0
 
         print("GLUPY TRACE OPEN FOP- {0:d}: gfid={1:s}; path={2:s}; "
@@ -237,7 +218,7 @@ class xlator(Translator):
         unique = dl.get_rootunique(frame)
         key = dl.get_id(frame)
         gfid = self.gfids[key]
-        self.cache.set_data(gfid, fd)
+        self.cache.set(gfid, (cookie, op_ret, op_errno, xdata))
         print("GLUPY TRACE OPEN CBK- {0:d}: gfid={1:s}; op_ret={2:d}; "
               "cookie={3}; op_errno={4:d}; *fd={5:s}").format(unique, gfid,
                                                               cookie,
