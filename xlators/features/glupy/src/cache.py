@@ -192,19 +192,6 @@ class xlator(Translator):
         unique = dl.get_rootunique(frame)
         key = dl.get_id(frame)
         gfid = uuid2str(loc.contents.inode.contents.gfid)
-        print self.cache.table
-        if gfid in self.cache:
-            print(
-                "GLUPY CACHE OPEN FOP- {0:d}: gfid={1:s}; path={2:s}; "
-                "flags={3:d}; fd={4:s}").format(unique, gfid,
-                                                loc.contents.path, flags,
-                                                fd)
-            # TODO: data instead of fd. How?
-            cookie, op_ret, op_errno, xdata = self.cache.get(gfid)
-            dl.unwind_open(frame, cookie, this, op_ret, op_errno,
-                           fd, xdata)
-            return 0
-
         print("GLUPY TRACE OPEN FOP- {0:d}: gfid={1:s}; path={2:s}; "
               "flags={3:d}; fd={4:s}").format(unique, gfid,
                                               loc.contents.path, flags,
@@ -218,7 +205,6 @@ class xlator(Translator):
         unique = dl.get_rootunique(frame)
         key = dl.get_id(frame)
         gfid = self.gfids[key]
-        self.cache.set(gfid, (cookie, op_ret, op_errno, xdata))
         print("GLUPY TRACE OPEN CBK- {0:d}: gfid={1:s}; op_ret={2:d}; "
               "cookie={3}; op_errno={4:d}; *fd={5:s}").format(unique, gfid,
                                                               cookie,
@@ -232,6 +218,19 @@ class xlator(Translator):
         unique = dl.get_rootunique(frame)
         key = dl.get_id(frame)
         gfid = uuid2str(fd.contents.inode.contents.gfid)
+        print self.cache.table
+        if gfid in self.cache:
+            print(
+                "GLUPY CACHE READV FOP- {0:d}: gfid={1:s}; "
+                "fd={2:s}; size ={3:d}; offset={4:d}; "
+                "flags=0{5:x}").format(unique, gfid, fd, size, offset, flags)
+
+            (cookie, op_ret, op_errno, vector,
+             count, buf, iobref, xdata) = self.cache.get(gfid)
+            dl.unwind_readv(frame, cookie, this, op_ret, op_errno,
+                            vector, count, buf, iobref, xdata)
+            return 0
+
         print("GLUPY TRACE READV FOP- {0:d}: gfid={1:s}; "
               "fd={2:s}; size ={3:d}; offset={4:d}; "
               "flags=0{5:x}").format(unique, gfid, fd, size, offset,
@@ -246,6 +245,8 @@ class xlator(Translator):
         unique = dl.get_rootunique(frame)
         key = dl.get_id(frame)
         gfid = self.gfids[key]
+        self.cache.set(gfid, (cookie, op_ret, op_errno, vector,
+                              count, buf, iobref, xdata))
         if op_ret >= 0:
             statstr = trace_stat2str(buf)
             print("GLUPY TRACE READV CBK- {0:d}: gfid={1:s}, "
