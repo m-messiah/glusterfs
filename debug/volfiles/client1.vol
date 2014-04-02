@@ -4,7 +4,7 @@
 volume node1
   type protocol/client
   option transport-type tcp/client
-  option remote-host test2
+  option remote-host test1
   option remote-subvolume brick1
 end-volume
 
