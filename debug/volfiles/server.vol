@@ -79,7 +79,7 @@ end-volume
 volume server
   type protocol/server
   option transport-type tcp/server
-  option auth.addr.brick1.allow 127.*
+  option auth.addr.brick1.allow 10.*
   #option auth.addr.brick2.allow 127.*
   #option auth.addr.brick3.allow 127.*
   subvolumes brick1
