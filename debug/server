@@ -1,1 +1,1 @@
-glusterfsd --volfile=./volfiles/server.vol 
+glusterfsd --log-level=DEBUG --volfile=./volfiles/server.vol --log-file=server.log

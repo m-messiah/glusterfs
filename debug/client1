@@ -1,1 +1,1 @@
-glusterfs --volfile=./volfiles/client1.vol /d1
+glusterfs --log-level=DEBUG --vol-file=client1.log --volfile=./volfiles/client1.vol /d1
