@@ -52,13 +52,19 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
 
         page = rbthash_get (ioc_inode->cache.page_table, &rounded_offset,
                             sizeof (rounded_offset));
-
+        gf_log ("io-cache", GF_LOG_DEBUG,
+                "get page");
         if (page != NULL) {
             if (table->cache_type == IOC_CACHE_LRU)
                 /* push the page to the end of the lru list */
                 list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
-            else if (table->cache_type == IOC_CACHE_MRU)
+            else if (table->cache_type == IOC_CACHE_MRU){
+                gf_log ("io-cache", GF_LOG_DEBUG,
+                "Start if page");
                 list_move (&page->page_lru, &ioc_inode->cache.page_lru);
+                gf_log ("io-cache", GF_LOG_DEBUG,
+                "List moved");
+            }
             else if (table->cache_type == IOC_CACHE_LFU)
                 page->access += 1;
         }
@@ -66,7 +72,6 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
 out:
         return page;
 }
-
 
 ioc_page_t *
 ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
