@@ -172,7 +172,7 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
 again:
         list_for_each_entry_safe (page, next, &curr->cache.page_lru, page_lru) {
 
-                if (table->cache_type == IOC_CACHE_LFU && page->access != minimum) continue;
+                if ((table->cache_type == IOC_CACHE_LFU) && (page->access != minimum)) continue;
 
                 *size_pruned += page->size;
                 ret = __ioc_page_destroy (page);
@@ -193,7 +193,7 @@ again:
                 list_del_init (&curr->inode_lru);
         }
         else {
-            if ((*size_pruned) < size_to_prune){
+            if (((*size_pruned) < size_to_prune) && (table->cache_type == IOC_CACHE_LFU)){
                 minimum++;
                 goto again;
             }

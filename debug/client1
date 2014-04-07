@@ -1,2 +1,2 @@
-glusterfs --fopen-keep-cache=false --volfile=./volfiles/client1.vol /d1
-#glusterfs --debug --fopen-keep-cache=false --volfile=./volfiles/client1.vol /d1
+#glusterfs --log-file=client1.log --fopen-keep-cache=false --volfile=./volfiles/client1.vol /d1
+glusterfs --log-file=/dev/stdout --log-level=TRACE --fopen-keep-cache=false --volfile=./volfiles/client1.vol /d1

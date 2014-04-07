@@ -1,1 +1,1 @@
-glusterfs --fopen-keep-cache=false --volfile=./volfiles/client4.vol /d4
+glusterfs --log-file=client4.log --fopen-keep-cache=false --volfile=./volfiles/client4.vol /d4

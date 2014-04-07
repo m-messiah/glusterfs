@@ -1,7 +1,7 @@
 #!/bin/bash
 
-algos=( LRU MRU FIFO )
-CLIENTS=3
+algos=( LRU MRU FIFO LFU )
+CLIENTS=1
 THREADS=1 
 for CLIENT in `seq 1 $CLIENTS`
 do
