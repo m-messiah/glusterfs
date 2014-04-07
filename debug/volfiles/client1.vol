@@ -31,19 +31,19 @@ end-volume
 ##########################
 ## Clustering with scheduler
 
-volume clusterA
-  type cluster/dht
-  subvolumes node1
+#volume clusterA
+#  type cluster/dht
+#  subvolumes node1
 # node2 node3
 #  option scheduler switch
 #  option local-volume-name node1
 #  option switch.case *.remote:node2;*.local:node1;*:node3
-end-volume
+#end-volume
 
-volume caching
+volume debugging
 	type features/glupy
-		option module-name cache
-	subvolumes clusterA
+		option module-name debug-trace
+	subvolumes node1
 end-volume
 #volume io-cache
 #	type performance/io-cache
