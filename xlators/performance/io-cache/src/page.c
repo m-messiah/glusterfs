@@ -182,8 +182,8 @@ again:
 
                 gf_log (table->xl->name, GF_LOG_TRACE,
                         "index = %d && table->cache_used = %"PRIu64" && table->"
-                        "cache_size = %"PRIu64, index, table->cache_used,
-                        table->cache_size);
+                        "cache_size = %"PRIu64" size_pruned = %d, size_to_prune = %d", index, table->cache_used,
+                        table->cache_size, *size_pruned, size_to_prune);
 
                 if ((*size_pruned) >= size_to_prune)
                         break;
