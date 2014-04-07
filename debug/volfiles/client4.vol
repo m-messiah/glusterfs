@@ -52,6 +52,6 @@ volume io-cache
 		option priority *:0
 		option cache-timeout 1
 		# cache_types = {0: Rand(not impl), 1: LRU, 2: MRU, 3: FIFO, 4: LFU }
-		option cache-type 3
+		option cache-type 4
 	subvolumes debugging
 end-volume

@@ -1,1 +1,1 @@
-glusterfs --volfile=./volfiles/client3.vol /d3
+glusterfs --fopen-keep-cache=false --volfile=./volfiles/client3.vol /d3
