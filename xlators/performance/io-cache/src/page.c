@@ -59,7 +59,7 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
             else if (table->cache_type == IOC_CACHE_MRU){
                 list_move (&page->page_lru, &ioc_inode->cache.page_lru);
             }
-            else if (cache_type == IOC_CACHE_LFU) {
+            else if (table->cache_type == IOC_CACHE_LFU) {
                 gf_log ("io-cache", GF_LOG_DEBUG, "Update access = %d", page->access);
                 page->access += 1;
             }
