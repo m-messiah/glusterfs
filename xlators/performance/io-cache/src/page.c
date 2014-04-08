@@ -55,8 +55,8 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
         gf_log ("io-cache", GF_LOG_DEBUG,
                 "get page");
         if (page != NULL) {
+            gf_log ("io-cache", GF_LOG_DEBUG, "Inside if: cache_type = %s", table->cache_type);
             if (table->cache_type == IOC_CACHE_LRU)
-                /* push the page to the end of the lru list */
                 list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
             else if (table->cache_type == IOC_CACHE_MRU){
                 gf_log ("io-cache", GF_LOG_DEBUG,
