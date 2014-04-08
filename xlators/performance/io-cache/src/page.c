@@ -60,7 +60,7 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
             else if (table->cache_type == IOC_CACHE_MRU){
                 list_move (&page->page_lru, &ioc_inode->cache.page_lru);
             }
-            else /* cache_type == LFU */
+            else if(cache_type == LFU)
                 page->access += 1;
         }
 
@@ -292,10 +292,11 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
 
         rbthash_insert (ioc_inode->cache.page_table, newpage, &rounded_offset,
                         sizeof (rounded_offset));
-        if (table->cache_type == IOC_CACHE_LRU || table->cache_type == IOC_CACHE_LFU)
+
+        if (table->cache_type == IOC_CACHE_MRU)
+            list_add (&newpage->page_lru, &ioc_inode->cache.page_lru);
+        else
             list_add_tail (&newpage->page_lru, &ioc_inode->cache.page_lru);
-        else if (table->cache_type == IOC_CACHE_MRU)
-            list_add (&newpage->page_lru, &ioc_inode->cache.page_lru);        
 
         page = newpage;
 
