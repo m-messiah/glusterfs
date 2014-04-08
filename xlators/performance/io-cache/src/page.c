@@ -60,7 +60,7 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
             else if (table->cache_type == IOC_CACHE_MRU){
                 list_move (&page->page_lru, &ioc_inode->cache.page_lru);
             }
-            else if(cache_type == LFU)
+            else if (cache_type == IOC_CACHE_LFU)
                 page->access += 1;
         }
 
