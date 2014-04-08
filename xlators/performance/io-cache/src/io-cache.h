@@ -123,6 +123,7 @@ struct ioc_page {
         pthread_mutex_t     page_lock;
         int32_t             op_errno;
         char                stale;
+        int32_t             access;
 };
 
 struct ioc_cache {

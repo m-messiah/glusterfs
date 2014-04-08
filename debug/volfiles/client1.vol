@@ -45,12 +45,13 @@ volume debugging
 		option module-name debug-trace
 	subvolumes node1
 end-volume
-#volume io-cache
-#	type performance/io-cache
-#		option cache-size 6MB
-#		option priority *:0
-#		option cache-timeout 1
-#		# cache_types = {0: Rand(not impl), 1: LRU, 2: MRU, 3: FIFO, 4: LFU }
-#		option cache_type 1
-#	subvolumes clusterA
-#end-volume
+
+volume io-cache
+	type performance/io-cache
+		option cache-size 6MB
+		option priority *:0
+		option cache-timeout 1
+		# cache_types = {0: Rand(not impl), 1: LRU, 2: MRU, 3: FIFO, 4: LFU }
+		option cache_type 1
+	subvolumes debugging
+end-volume

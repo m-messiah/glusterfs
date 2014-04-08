@@ -53,11 +53,15 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
         page = rbthash_get (ioc_inode->cache.page_table, &rounded_offset,
                             sizeof (rounded_offset));
 
-        if (table->cache_type == IOC_CACHE_LRU || table->cache_type == IOC_CACHE_MRU)
-            if (page != NULL) {
-                    /* push the page to the end of the lru list */
-                    list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
-            }
+        if (page != NULL) {
+            if (table->cache_type == IOC_CACHE_LRU)
+                /* push the page to the end of the lru list */
+                list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
+            else if (table->cache_type == IOC_CACHE_MRU)
+                list_move (&page->page_lru, &ioc_inode->cache.page_lru);
+            else if (table->cache_type == IOC_CACHE_LFU)
+                page->access += 1;
+        }
 
 out:
         return page;
@@ -157,7 +161,7 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
                    uint64_t size_to_prune, uint32_t index)
 {
         ioc_page_t  *page  = NULL, *next = NULL;
-        int32_t      ret   = 0;
+        int32_t      ret   = 0, minimum = 0;
         ioc_table_t *table = NULL;
 
         if (curr == NULL) {
@@ -165,13 +169,16 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
         }
 
         table = curr->table;
-
+again:
         list_for_each_entry_safe (page, next, &curr->cache.page_lru, page_lru) {
+
+                if (table->cache_type == IOC_CACHE_LFU && page->access != minimum) continue;
+
                 *size_pruned += page->size;
                 ret = __ioc_page_destroy (page);
 
                 if (ret != -1)
-                        table->cache_used -= ret;
+                    table->cache_used -= ret;
 
                 gf_log (table->xl->name, GF_LOG_TRACE,
                         "index = %d && table->cache_used = %"PRIu64" && table->"
@@ -184,6 +191,12 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
 
         if (ioc_empty (&curr->cache)) {
                 list_del_init (&curr->inode_lru);
+        }
+        else {
+            if ((*size_pruned) < size_to_prune){
+                minimum++;
+                goto again;
+            }
         }
 
 out:
@@ -211,55 +224,26 @@ ioc_prune (ioc_table_t *table)
                 size_to_prune = table->cache_used - table->cache_size;
                 /* take out the least recently used inode */
                 for (index=0; index < table->max_pri; index++) {
-                    if (table->cache_type == IOC_CACHE_LRU || table->cache_type == IOC_CACHE_FIFO) {
-                        list_for_each_entry_safe (curr, next_ioc_inode,
-                                                  &table->inode_lru[index],
-                                                  inode_lru) {
-                                /* prune page-by-page for this inode, till
-                                 * we reach the equilibrium */
-                                ioc_inode_lock (curr);
-                                {
-                                        __ioc_inode_prune (curr, &size_pruned,
-                                                           size_to_prune,
-                                                           index);
-                                }
-                                ioc_inode_unlock (curr);
-
-                                if (size_pruned >= size_to_prune)
-                                        break;
-                        } /* list_for_each_entry_safe (curr...) */
-
-                        if (size_pruned >= size_to_prune)
-                                break;
-                    } /* IOC_CACHE_LRU or IOC_CACHE_FIFO */
-                    else if (table->cache_type == IOC_CACHE_MRU) {
-                        list_for_each_entry_safe_reverse(curr, next_ioc_inode,
-                                                         &table->inode_lru[index],
-                                                         inode_lru) {
+                    list_for_each_entry_safe (curr, next_ioc_inode,
+                                              &table->inode_lru[index],
+                                              inode_lru) {
                             /* prune page-by-page for this inode, till
                              * we reach the equilibrium */
                             ioc_inode_lock (curr);
                             {
-                                __ioc_inode_prune (curr, &size_pruned,
-                                                   size_to_prune,
-                                                   index);
+                                    __ioc_inode_prune (curr, &size_pruned,
+                                                       size_to_prune,
+                                                       index);
                             }
                             ioc_inode_unlock (curr);
-                            
+
                             if (size_pruned >= size_to_prune)
-                                break;
-                        } /* list_for_each_entry_safe_reverse (curr...) */
-                        
-                        if (size_pruned >= size_to_prune)
+                                    break;
+                    } /* list_for_each_entry_safe (curr...) */
+
+                    if (size_pruned >= size_to_prune)
                             break;
-                    } /* IOC_CACHE_MRU */
-                    else if (table->cache_type == IOC_CACHE_LFU) {
-                        
-                    } /* IOC_CACHE_LFU */
-                    else if (table->cache_type == IOC_CACHE_RAND) {
-                        
-                    } /* IOC_CACHE_RAND */
-                } /* for(index=0;...) */
+                    }
 
         } /* ioc_inode_table locked region end */
         ioc_table_unlock (table);
@@ -303,12 +287,15 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
 
         newpage->offset = rounded_offset;
         newpage->inode = ioc_inode;
+        newpage->access = 0;
         pthread_mutex_init (&newpage->page_lock, NULL);
 
         rbthash_insert (ioc_inode->cache.page_table, newpage, &rounded_offset,
                         sizeof (rounded_offset));
-
-        list_add_tail (&newpage->page_lru, &ioc_inode->cache.page_lru);
+        if (table->cache_type == IOC_CACHE_LRU || table->cache_type == IOC_CACHE_LFU)
+            list_add_tail (&newpage->page_lru, &ioc_inode->cache.page_lru);
+        else if (table->cache_type == IOC_CACHE_MRU)
+            list_add (&page->page_lru, &ioc_inode->cache.page_lru);        
 
         page = newpage;
 
