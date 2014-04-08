@@ -1685,7 +1685,7 @@ reconfigure (xlator_t *this, dict_t *options)
                                 "Not reconfiguring cache-size");
                         goto unlock;
                 }
-                GF_OPTION_RECONF ("cache_type", table->cache_type,
+                GF_OPTION_RECONF ("cache-type", table->cache_type,
                                   options, uint32, unlock);
                 table->cache_size = cache_size_new;
 
@@ -1750,7 +1750,7 @@ init (xlator_t *this)
                 goto out;
         }
     
-        GF_OPTION_INIT ("cache_type", table->cache_type, uint32, out);
+        GF_OPTION_INIT ("cache-type", table->cache_type, uint32, out);
 
         INIT_LIST_HEAD (&table->priority_list);
         table->max_pri = 1;
@@ -2158,7 +2158,7 @@ struct volume_options options[] = {
           .description = "Maximum file size which would be cached by the "
           "io-cache translator."
         },
-        { .key  = {"cache_type"},
+        { .key  = {"cache-type"},
           .type = GF_OPTION_TYPE_INT,
           .min  = 0,
           .max  = 4,

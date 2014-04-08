@@ -46,26 +46,24 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
         GF_VALIDATE_OR_GOTO ("io-cache", ioc_inode, out);
 
         table = ioc_inode->table;
-        GF_VALIDATE_OR_GOTO ("io-cache", ioc_inode, out);
+
+        GF_VALIDATE_OR_GOTO ("io-cache", table, out);
 
         rounded_offset = floor (offset, table->page_size);
 
         page = rbthash_get (ioc_inode->cache.page_table, &rounded_offset,
                             sizeof (rounded_offset));
-        gf_log ("io-cache", GF_LOG_DEBUG,
-                "get page");
         if (page != NULL) {
-            gf_log ("io-cache", GF_LOG_DEBUG, "Inside if: cache_type = %s", table->cache_type);
+            GF_VALIDATE_OR_GOTO ("io-cache", table->cache_type, out);            
+            gf_log ("io-cache", GF_LOG_DEBUG, "Inside if: cache-type = %d", table->cache_type);
             if (table->cache_type == IOC_CACHE_LRU)
                 list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
             else if (table->cache_type == IOC_CACHE_MRU){
-                gf_log ("io-cache", GF_LOG_DEBUG,
-                "Start if page");
+                gf_log ("io-cache", GF_LOG_DEBUG, "Start if page");
                 list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
-                gf_log ("io-cache", GF_LOG_DEBUG,
-                "List moved");
+                gf_log ("io-cache", GF_LOG_DEBUG, "List moved");
             }
-            else if (table->cache_type == IOC_CACHE_LFU)
+            else /* cache_type == LFU */
                 page->access += 1;
         }
 
