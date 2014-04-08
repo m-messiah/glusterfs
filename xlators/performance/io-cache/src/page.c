@@ -53,15 +53,12 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
 
         page = rbthash_get (ioc_inode->cache.page_table, &rounded_offset,
                             sizeof (rounded_offset));
-        if (page != NULL) {
-            GF_VALIDATE_OR_GOTO ("io-cache", table->cache_type, out);            
+        if (page != NULL) {         
             gf_log ("io-cache", GF_LOG_DEBUG, "Inside if: cache-type = %d", table->cache_type);
             if (table->cache_type == IOC_CACHE_LRU)
                 list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
             else if (table->cache_type == IOC_CACHE_MRU){
-                gf_log ("io-cache", GF_LOG_DEBUG, "Start if page");
-                list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
-                gf_log ("io-cache", GF_LOG_DEBUG, "List moved");
+                list_move (&page->page_lru, &ioc_inode->cache.page_lru);
             }
             else /* cache_type == LFU */
                 page->access += 1;
@@ -298,7 +295,7 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
         if (table->cache_type == IOC_CACHE_LRU || table->cache_type == IOC_CACHE_LFU)
             list_add_tail (&newpage->page_lru, &ioc_inode->cache.page_lru);
         else if (table->cache_type == IOC_CACHE_MRU)
-            list_add (&page->page_lru, &ioc_inode->cache.page_lru);        
+            list_add (&newpage->page_lru, &ioc_inode->cache.page_lru);        
 
         page = newpage;
 
