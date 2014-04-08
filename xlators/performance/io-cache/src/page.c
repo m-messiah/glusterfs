@@ -61,7 +61,7 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
             else if (table->cache_type == IOC_CACHE_MRU){
                 gf_log ("io-cache", GF_LOG_DEBUG,
                 "Start if page");
-                list_move (&page->page_lru, &ioc_inode->cache.page_lru);
+                list_move_tail (&page->page_lru, &ioc_inode->cache.page_lru);
                 gf_log ("io-cache", GF_LOG_DEBUG,
                 "List moved");
             }

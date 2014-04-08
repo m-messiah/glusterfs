@@ -1685,7 +1685,7 @@ reconfigure (xlator_t *this, dict_t *options)
                                 "Not reconfiguring cache-size");
                         goto unlock;
                 }
-                GF_OPTION_RECONF ("cache-type", table->cache_type,
+                GF_OPTION_RECONF ("cache_type", table->cache_type,
                                   options, uint32, unlock);
                 table->cache_size = cache_size_new;
 
