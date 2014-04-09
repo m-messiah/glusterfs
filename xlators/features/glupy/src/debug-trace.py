@@ -2,7 +2,7 @@ import sys
 import stat
 from uuid import UUID
 from time import strftime, localtime
-from gluster.glupy import *
+from gluster import *
 # This translator was written primarily to test the fop entry point definitions
 # and structure definitions in 'gluster.py'.
 # It is similar to the debug-trace translator, one of the already available

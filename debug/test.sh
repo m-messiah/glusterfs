@@ -1,7 +1,7 @@
 #!/bin/bash
 
 algos=( LRU MRU FIFO LFU )
-CLIENTS=1
+CLIENTS=4
 THREADS=1 
 for CLIENT in `seq 1 $CLIENTS`
 do
@@ -14,6 +14,7 @@ do
     
     for SIZE in 10 100 200
     do
+	rm -rf /d${CLIENT}/*
     	for i in `seq 1 $FILES`
     	do
     		dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=${SIZE}k count=1 2> /dev/null
@@ -26,6 +27,7 @@ do
     		echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/rand$THREADS*$TRIES*${SIZE}k.txt
     	done
     
+	rm -rf /d${CLIENT}/*
     	for i in `seq 1 $FILES`
     	do
     		dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=${SIZE}k count=1 2> /dev/null
@@ -41,6 +43,7 @@ do
     
     for SIZE in 1 10 40
     do
+	rm -rf /d${CLIENT}/*
     	for i in `seq 1 $FILES`
     	do
     		dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=1M count=$SIZE 2> /dev/null
@@ -53,6 +56,7 @@ do
     		echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/rand$THREADS*$TRIES*${SIZE}M.txt
     	done
     
+	rm -rf /d${CLIENT}/*
     	for i in `seq 1 $FILES`
     	do
     		dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=1M count=$SIZE 2> /dev/null
