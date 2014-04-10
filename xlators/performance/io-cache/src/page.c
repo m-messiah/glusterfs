@@ -59,10 +59,8 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
             else if (table->cache_type == IOC_CACHE_MRU){
                 list_move (&page->page_lru, &ioc_inode->cache.page_lru);
             }
-            else if (table->cache_type == IOC_CACHE_LFU) {
-                gf_log ("io-cache", GF_LOG_DEBUG, "Update access = %d", page->access);
+            else if (table->cache_type == IOC_CACHE_LFU) 
                 page->access += 1;
-            }
         }
 out:
         return page;
@@ -123,7 +121,6 @@ __ioc_page_destroy (ioc_page_t *page)
                         GF_FREE (page->vector);
                         page->vector = NULL;
                 }
-
                 page->inode = NULL;
         }
 
@@ -161,7 +158,7 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
                    uint64_t size_to_prune, uint32_t index)
 {
         ioc_page_t  *page  = NULL, *next = NULL;
-        int32_t      ret   = 0, minimum = 0;
+        int32_t      ret   = 0;
         ioc_table_t *table = NULL;
 
         if (curr == NULL) {
@@ -169,34 +166,32 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
         }
 
         table = curr->table;
-again:
         list_for_each_entry_safe (page, next, &curr->cache.page_lru, page_lru) {
-
-                if ((table->cache_type == IOC_CACHE_LFU) && (page->access != minimum)) continue;
+		/* TODO: Create list with frequences. Find real minimum, delete" 
+                if ((table->cache_type == IOC_CACHE_LFU) && (page->access > minimum)) {
+			gf_log("io-cache", GF_LOG_DEBUG, "LFU skip: min = %d, current = %d",
+			       minimum, page->access);
+			continue;
+		}*/
 
                 *size_pruned += page->size;
                 ret = __ioc_page_destroy (page);
 
-                if (ret != -1)
+                if (ret != -1)	{
                     table->cache_used -= ret;
 
-                gf_log (table->xl->name, GF_LOG_TRACE,
-                        "index = %d && table->cache_used = %"PRIu64" && table->"
-                        "cache_size = %"PRIu64" size_pruned = %d, size_to_prune = %d", index, table->cache_used,
-                        table->cache_size, *size_pruned, size_to_prune);
-
+	                gf_log (table->xl->name, GF_LOG_DEBUG,
+	                        "ret =  %d && index = %d && table->cache_used = %"PRIu64" && table->"
+	                        "cache_size = %"PRIu64" size_pruned = %"PRIu64", size_to_prune = %"PRIu64,
+				ret, index, table->cache_used,
+                 	       table->cache_size, *size_pruned, size_to_prune);
+		}
                 if ((*size_pruned) >= size_to_prune)
                         break;
         }
 
         if (ioc_empty (&curr->cache)) {
                 list_del_init (&curr->inode_lru);
-        }
-        else {
-            if (((*size_pruned) < size_to_prune) && (table->cache_type == IOC_CACHE_LFU)){
-                minimum++;
-                goto again;
-            }
         }
 
 out:

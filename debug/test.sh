@@ -3,7 +3,7 @@
 algos=( LRU MRU FIFO LFU )
 CLIENTS=4
 THREADS=1 
-for CLIENT in `seq 1 $CLIENTS`
+for CLIENT in `seq 4 $CLIENTS`
 do
     ALGO=${algos[$((CLIENT - 1))]}
     rm -rf ./result/$ALGO
