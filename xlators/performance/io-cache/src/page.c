@@ -21,6 +21,18 @@
 #include "ioc-mem-types.h"
 #include <assert.h>
 #include <sys/time.h>
+#include "uthash.h"
+
+struct page_list_t {
+    ioc_page_t *page;
+    ioc_page_t *next;
+}
+
+struct lfu_list_t {
+    int32_t access;
+    struct page_list_t *pages;
+    UT_hash_handle hh;
+};
 
 char
 ioc_empty (struct ioc_cache *cache)
@@ -159,35 +171,70 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
 {
         ioc_page_t  *page  = NULL, *next = NULL;
         int32_t      ret   = 0;
+        int32_t      i     = 1;
         ioc_table_t *table = NULL;
+        struct lfu_list_t *lfu_list = NULL;
+        struct page_list_t *page_list = NULL;
 
         if (curr == NULL) {
                 goto out;
         }
 
         table = curr->table;
-        list_for_each_entry_safe (page, next, &curr->cache.page_lru, page_lru) {
-		/* TODO: Create list with frequences. Find real minimum, delete" 
-                if ((table->cache_type == IOC_CACHE_LFU) && (page->access > minimum)) {
-			gf_log("io-cache", GF_LOG_DEBUG, "LFU skip: min = %d, current = %d",
-			       minimum, page->access);
-			continue;
-		}*/
 
-                *size_pruned += page->size;
-                ret = __ioc_page_destroy (page);
+        if (table->cache_type == IOC_CACHE_LFU) {
+            /* Create hashtable by Freq */
+            list_for_each_entry (page, &curr->cache.page_lru, page_lru) {
+                HASH_FIND_INT(lfu_list, page->access, next);
+                if (next == NULL){
+                    HASH_ADD_INT(lfu_list, access, page_list);
+                    HASH_FIND_INT(lfu_list, page->access, next);
+                }
+                next->next = page;
+            }
+            while (i) {
+                HASH_FIND_INT(lfu_list, i, page_list);
+                page_list = page_list->next;
+                while (page_list) {
+                    page = page_list->page;
+                    *size_pruned += page->size;
+                    ret = __ioc_page_destroy (page);
 
-                if (ret != -1)	{
-                    table->cache_used -= ret;
+                    if (ret != -1)  {
+                        table->cache_used -= ret;
 
-	                gf_log (table->xl->name, GF_LOG_DEBUG,
-	                        "ret =  %d && index = %d && table->cache_used = %"PRIu64" && table->"
-	                        "cache_size = %"PRIu64" size_pruned = %"PRIu64", size_to_prune = %"PRIu64,
-				ret, index, table->cache_used,
-                 	       table->cache_size, *size_pruned, size_to_prune);
-		}
+                        gf_log (table->xl->name, GF_LOG_DEBUG,
+                                "ret =  %d && index = %d && table->cache_used = %"PRIu64" && table->"
+                                "cache_size = %"PRIu64" size_pruned = %"PRIu64", size_to_prune = %"PRIu64,
+                                ret, index, table->cache_used,
+                                table->cache_size, *size_pruned, size_to_prune);
+                        }
+                    if ((*size_pruned) >= size_to_prune)
+                            break;
+                    page_list = page_list->next;
+                    }
                 if ((*size_pruned) >= size_to_prune)
-                        break;
+                    break;
+                i++;
+            }
+        }
+        else {
+            list_for_each_entry_safe (page, next, &curr->cache.page_lru, page_lru) {
+                    *size_pruned += page->size;
+                    ret = __ioc_page_destroy (page);
+
+                    if (ret != -1)	{
+                        table->cache_used -= ret;
+
+    	                gf_log (table->xl->name, GF_LOG_DEBUG,
+    	                        "ret =  %d && index = %d && table->cache_used = %"PRIu64" && table->"
+    	                        "cache_size = %"PRIu64" size_pruned = %"PRIu64", size_to_prune = %"PRIu64,
+    				ret, index, table->cache_used,
+                     	       table->cache_size, *size_pruned, size_to_prune);
+    		}
+                    if ((*size_pruned) >= size_to_prune)
+                            break;
+            }
         }
 
         if (ioc_empty (&curr->cache)) {
