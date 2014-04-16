@@ -25,14 +25,15 @@
 
 struct page_list_t {
     ioc_page_t *page;
-    ioc_page_t *next;
-}
-
-struct lfu_list_t {
-    int32_t access;
-    struct page_list_t *pages;
-    UT_hash_handle hh;
+    struct page_list_t *next;
 };
+
+
+typedef struct {
+    int32_t access;
+    struct page_list_t *page_list;
+    UT_hash_handle hh;
+} lfu_list_t;
 
 char
 ioc_empty (struct ioc_cache *cache)
@@ -171,10 +172,11 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
 {
         ioc_page_t  *page  = NULL, *next = NULL;
         int32_t      ret   = 0;
-        int32_t      i     = 1;
+        int      i     = 1;
         ioc_table_t *table = NULL;
-        struct lfu_list_t *lfu_list = NULL;
-        struct page_list_t *page_list = NULL;
+        lfu_list_t *lfu_list = NULL;
+        lfu_list_t *lfu_item = NULL;
+        struct page_list_t *page_list = NULL, *tmp_list = NULL;
 
         if (curr == NULL) {
                 goto out;
@@ -185,16 +187,23 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
         if (table->cache_type == IOC_CACHE_LFU) {
             /* Create hashtable by Freq */
             list_for_each_entry (page, &curr->cache.page_lru, page_lru) {
-                HASH_FIND_INT(lfu_list, page->access, next);
-                if (next == NULL){
-                    HASH_ADD_INT(lfu_list, access, page_list);
-                    HASH_FIND_INT(lfu_list, page->access, next);
+                HASH_FIND_INT(lfu_list, &page->access, lfu_item);
+                if (lfu_item == NULL){
+		    lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
+		    lfu_item->access = page->access;
+                    HASH_ADD_INT(lfu_list, access, lfu_item);
+		    lfu_item->page_list = (struct page_list_t*)malloc(sizeof(struct page_list_t));
+		    lfu_item->page_list->next = NULL;
                 }
-                next->next = page;
+		tmp_list = (struct page_list_t*)malloc(sizeof(struct page_list_t));
+                tmp_list->page = page;
+		tmp_list->next = lfu_item->page_list;
+		lfu_item->page_list = tmp_list;
+		
             }
             while (i) {
-                HASH_FIND_INT(lfu_list, i, page_list);
-                page_list = page_list->next;
+                HASH_FIND_INT(lfu_list, &i, lfu_item);
+                page_list = lfu_item->page_list->next;
                 while (page_list) {
                     page = page_list->page;
                     *size_pruned += page->size;
