@@ -23,8 +23,8 @@ LDFLAGS=-L/usr/local/lib \
 CFLAGS="-O3 -pipe -mmmx -msse2 -msse3 -mssse3" \
 CXXFLAGS="${CFLAGS}"
 #$CLEAN
-make
-#make uninstall
-make install
+make || exit 1
+#make uninstall || exit 1
+make install || exit 2
 #rm -f /usr/sbin/glusterfs
 #cp /usr/sbin/glusterfs{d,}
