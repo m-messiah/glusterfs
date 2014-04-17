@@ -175,7 +175,6 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
         int      i     = 1;
         ioc_table_t *table = NULL;
         lfu_list_t *lfu_list = NULL, *lfu_item = NULL;
-        lfu_list_t *s = NULL;
         struct page_list_t *page_list = NULL, *tmp_list = NULL;
 
         if (curr == NULL) {
@@ -186,32 +185,27 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
 
         if (table->cache_type == IOC_CACHE_LFU) {
             /* Create hashtable by Freq */
-            list_for_each_entry (page, &curr->cache.page_lru, page_lru) {
-                gf_log("lfu-list", GF_LOG_DEBUG, "page = %p", page);
+            list_for_each_entry_safe (page, next, &curr->cache.page_lru, page_lru) {
                 HASH_FIND_INT(lfu_list, &(page->access), lfu_item);
-                gf_log("lfu-list", GF_LOG_DEBUG, "lfu_item = %p", lfu_item);
                 if (lfu_item == NULL){
                     lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
                     lfu_item->access = page->access;
                     lfu_item->page_list = NULL;
-                    gf_log("lfu-list", GF_LOG_DEBUG, "NULL: Creating lfu_item = %p, access = %d", lfu_item, lfu_item->access);
-                 }
+                    HASH_ADD_INT(lfu_list, access, lfu_item);
+                }
                 tmp_list = (struct page_list_t*)malloc(sizeof(struct page_list_t));
                 tmp_list->page = page;
                 tmp_list->next = lfu_item->page_list;
                 lfu_item->page_list = tmp_list;
-                gf_log("lfu-list", GF_LOG_DEBUG, "ADD lfu_item = %p", lfu_item);
-                HASH_ADD_INT(lfu_list, access, lfu_item);
-                gf_log("lfu-list", GF_LOG_DEBUG, "Next page: page = %p", page);
             }
-        gf_log("lfu-list", GF_LOG_DEBUG, "FINAL: lfu_list = %p", lfu_list); 
-        if (lfu_list == NULL) {gf_log("lfu-list", GF_LOG_DEBUG, "empty: page = %p", page); goto out;}
+        gf_log("lfu-list", GF_LOG_DEBUG, "lfu_list = %p", lfu_list); 
+        if (lfu_list == NULL) goto out;
         while (i) {
                 HASH_FIND_INT(lfu_list, &i, lfu_item);
-                /*gf_log("lfu-item", GF_LOG_DEBUG, "lfu_item = %p ; %s", lfu_item, lfu_item);*/
                 if (lfu_item == NULL) {i++; continue;}
                 gf_log("io-cache-lfu", GF_LOG_DEBUG, "lfu_item->access=%d && lfu_item->page_list = %p && i = %d",
                        lfu_item->access, lfu_item->page_list, i);
+
                 page_list = lfu_item->page_list;
                 while (page_list) {
                     page = page_list->page;
@@ -230,7 +224,7 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
                     if ((*size_pruned) >= size_to_prune)
                             break;
                     page_list = page_list->next;
-                    }
+                }
                 if ((*size_pruned) >= size_to_prune)
                     break;
                 i++;
@@ -260,6 +254,7 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
         }
 
 out:
+        gf_log("io-cache-prune", GF_LOG_DEBUG, "prune exit");
         return 0;
 }
 /*
