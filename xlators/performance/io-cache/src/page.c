@@ -72,8 +72,12 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
             else if (table->cache_type == IOC_CACHE_MRU){
                 list_move (&page->page_lru, &ioc_inode->cache.page_lru);
             }
-            else if (table->cache_type == IOC_CACHE_LFU) 
+            else if (table->cache_type == IOC_CACHE_LFU) {
+                if (page->access > 25000)
+                    list_for_each_entry(page, &ioc_inode->cache.page_lru, page_lru)
+                        page->access = page->access >> 1;
                 page->access += 1;
+            }
         }
 out:
         return page;
@@ -200,7 +204,7 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
             }
         gf_log("lfu-list", GF_LOG_DEBUG, "lfu_list = %p", lfu_list); 
         if (lfu_list == NULL) goto out;
-        while (i) {
+        while (i < 30000) {
                 HASH_FIND_INT(lfu_list, &i, lfu_item);
                 if (lfu_item == NULL) {i++; continue;}
                 gf_log("io-cache-lfu", GF_LOG_DEBUG, "lfu_item->access=%d && lfu_item->page_list = %p && i = %d",
