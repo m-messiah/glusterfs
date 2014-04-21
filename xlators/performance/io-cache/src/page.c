@@ -334,10 +334,9 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
         ioc_table_t *table          = NULL;
         ioc_page_t  *page           = NULL;
         off_t        rounded_offset = 0;
-        int32_t     one = 1;
         ioc_page_t  *newpage        = NULL;
-        lfu_list_t *lfu_item = NULL;
-        page_list_t *tmp_list = NULL;
+        lfu_list_t  *lfu_item       = NULL;
+        page_list_t *tmp_list       = NULL;
 
         GF_VALIDATE_OR_GOTO ("io-cache", ioc_inode, out);
 
@@ -370,7 +369,10 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
         else if (table->cache_type == IOC_CACHE_LRU || table->cache_type == IOC_CACHE_FIFO)
             list_add_tail (&newpage->page_lru, &ioc_inode->cache.page_lru);
         else {
-            HASH_FIND_INT(ioc_inode->cache.page_lfu, &one, lfu_item);
+            if (ioc_inode->cache.page_lfu != NULL) {
+                HASH_FIND_INT(ioc_inode->cache.page_lfu, &(newpage->access), lfu_item);
+            }
+
             if (lfu_item == NULL){
                 lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
                 lfu_item->access = 1;
@@ -791,7 +793,8 @@ __ioc_frame_fill (ioc_page_t *page, call_frame_t *frame, off_t offset,
             list_move (&page->page_lru, &ioc_inode->cache.page_lru);
         }
         else if (table->cache_type == IOC_CACHE_LFU) {
-            HASH_FIND_INT(ioc_inode->cache.page_lfu, &(page->access), lfu_item);
+            if (ioc_inode->cache.page_lfu != NULL)
+                HASH_FIND_INT(ioc_inode->cache.page_lfu, &(page->access), lfu_item);
             if (lfu_item != NULL) {
                 tmp_list = lfu_item->page_list;
                 while(tmp_list->next != NULL && tmp_list->next->page != page) {

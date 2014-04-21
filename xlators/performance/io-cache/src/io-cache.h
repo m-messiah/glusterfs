@@ -122,22 +122,22 @@ struct ioc_local {
  *
  */
 struct ioc_page {
-        struct list_head    page_lru;
-        struct lfu_list_t  *page_lfu;
+        struct list_head     page_lru;
+        struct lfu_list     *page_lfu;
         struct ioc_inode    *inode;   /* inode this page belongs to */
         struct ioc_priority *priority;
-        char                dirty;
-        char                ready;
+        char                 dirty;
+        char                 ready;
         struct iovec        *vector;
-        int32_t             count;
-        off_t               offset;
-        size_t              size;
+        int32_t              count;
+        off_t                offset;
+        size_t               size;
         struct ioc_waitq    *waitq;
         struct iobref       *iobref;
-        pthread_mutex_t     page_lock;
-        int32_t             op_errno;
-        char                stale;
-        int32_t             access;
+        pthread_mutex_t      page_lock;
+        int32_t              op_errno;
+        char                 stale;
+        int32_t              access;
 };
 
 struct ioc_cache {
