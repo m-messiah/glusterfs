@@ -123,7 +123,7 @@ struct ioc_local {
  */
 struct ioc_page {
         struct list_head    page_lru;
-        struct lfu_list_t  *lfu_list;
+        struct lfu_list_t  *page_lfu;
         struct ioc_inode    *inode;   /* inode this page belongs to */
         struct ioc_priority *priority;
         char                dirty;

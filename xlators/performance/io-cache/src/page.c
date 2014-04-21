@@ -43,7 +43,7 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
         ioc_table_t  *table          = NULL;
         off_t        rounded_offset = 0;
         lfu_list_t   *lfu_item = NULL;
-        struct page_list_t  *tmp_list = NULL, *freed_item = NULL;
+        page_list_t  *tmp_list = NULL, *freed_item = NULL;
 
         GF_VALIDATE_OR_GOTO ("io-cache", ioc_inode, out);
 
@@ -62,11 +62,6 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
                 list_move (&page->page_lru, &ioc_inode->cache.page_lru);
             }
             else if (table->cache_type == IOC_CACHE_LFU) {
-                if (page->access > 25000)
-                    list_for_each_entry(page, &ioc_inode->cache.page_lru, page_lru)
-                        page->access = page->access >> 1;
-                
-
                 HASH_FIND_INT(ioc_inode->cache.page_lfu, &(page->access), lfu_item);
                 if (lfu_item != NULL) {
                     tmp_list = lfu_item->page_list;
@@ -85,9 +80,9 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
                     lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
                     lfu_item->access = page->access;
                     lfu_item->page_list = NULL;
-                    HASH_ADD_INT(lfu_list, access, lfu_item);
+                    HASH_ADD_INT(ioc_inode->cache.page_lfu, access, lfu_item);
                 }
-                tmp_list = (struct page_list_t*)malloc(sizeof(struct page_list_t));
+                tmp_list = (page_list_t*)malloc(sizeof(page_list_t));
                 tmp_list->page = page;
                 tmp_list->next = lfu_item->page_list;
                 lfu_item->page_list = tmp_list;
@@ -193,8 +188,8 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
         int32_t      ret   = 0;
         int      i     = 1;
         ioc_table_t *table = NULL;
-        lfu_list_t *lfu_list = NULL, *lfu_item = NULL;
-        struct page_list_t *page_list = NULL, *tmp_list = NULL;
+        lfu_list_t *lfu_item = NULL;
+        page_list_t *page_list = NULL;
 
         if (curr == NULL) {
                 goto out;
@@ -220,7 +215,7 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
         gf_log("lfu-list", GF_LOG_DEBUG, "lfu_list = %p", lfu_list); 
         if (lfu_list == NULL) goto out; */
             while (i < 30000) {
-                    HASH_FIND_INT(lfu_list, &i, lfu_item);
+                    HASH_FIND_INT(curr->cache.page_lfu, &i, lfu_item);
                     if (lfu_item == NULL) {i++; continue;}
                     gf_log("io-cache-lfu", GF_LOG_DEBUG, "lfu_item->access=%d && lfu_item->page_list = %p && i = %d",
                            lfu_item->access, lfu_item->page_list, i);
@@ -339,9 +334,10 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
         ioc_table_t *table          = NULL;
         ioc_page_t  *page           = NULL;
         off_t        rounded_offset = 0;
+        int32_t     one = 1;
         ioc_page_t  *newpage        = NULL;
         lfu_list_t *lfu_item = NULL;
-        struct page_list_t *tmp_list = NULL;
+        page_list_t *tmp_list = NULL;
 
         GF_VALIDATE_OR_GOTO ("io-cache", ioc_inode, out);
 
@@ -374,14 +370,14 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
         else if (table->cache_type == IOC_CACHE_LRU || table->cache_type == IOC_CACHE_FIFO)
             list_add_tail (&newpage->page_lru, &ioc_inode->cache.page_lru);
         else {
-            HASH_FIND_INT(ioc_inode->cache.lfu_list, 1, lfu_item);
+            HASH_FIND_INT(ioc_inode->cache.page_lfu, &one, lfu_item);
             if (lfu_item == NULL){
                 lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
                 lfu_item->access = 1;
                 lfu_item->page_list = NULL;
-                HASH_ADD_INT(ioc_inode->cache.lfu_list, access, lfu_item);
+                HASH_ADD_INT(ioc_inode->cache.page_lfu, access, lfu_item);
             }
-            tmp_list = (struct page_list_t*)malloc(sizeof(struct page_list_t));
+            tmp_list = (page_list_t*)malloc(sizeof(page_list_t));
             tmp_list->page = newpage;
             tmp_list->next = lfu_item->page_list;
             lfu_item->page_list = tmp_list;
@@ -764,6 +760,8 @@ __ioc_frame_fill (ioc_page_t *page, call_frame_t *frame, off_t offset,
         int8_t       found      = 0;
         int32_t      ret        = -1;
         ioc_table_t  *table          = NULL;
+        lfu_list_t   *lfu_item = NULL;
+        page_list_t  *tmp_list = NULL, *freed_item = NULL;
 
         GF_VALIDATE_OR_GOTO ("io-cache", frame, out);
 
@@ -793,11 +791,6 @@ __ioc_frame_fill (ioc_page_t *page, call_frame_t *frame, off_t offset,
             list_move (&page->page_lru, &ioc_inode->cache.page_lru);
         }
         else if (table->cache_type == IOC_CACHE_LFU) {
-            if (page->access > 25000)
-                list_for_each_entry(page, &ioc_inode->cache.page_lru, page_lru)
-                    page->access = page->access >> 1;
-            
-
             HASH_FIND_INT(ioc_inode->cache.page_lfu, &(page->access), lfu_item);
             if (lfu_item != NULL) {
                 tmp_list = lfu_item->page_list;
@@ -816,9 +809,9 @@ __ioc_frame_fill (ioc_page_t *page, call_frame_t *frame, off_t offset,
                 lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
                 lfu_item->access = page->access;
                 lfu_item->page_list = NULL;
-                HASH_ADD_INT(lfu_list, access, lfu_item);
+                HASH_ADD_INT(ioc_inode->cache.page_lfu, access, lfu_item);
             }
-            tmp_list = (struct page_list_t*)malloc(sizeof(struct page_list_t));
+            tmp_list = (page_list_t*)malloc(sizeof(page_list_t));
             tmp_list->page = page;
             tmp_list->next = lfu_item->page_list;
             lfu_item->page_list = tmp_list;
