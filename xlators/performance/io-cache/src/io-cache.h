@@ -44,6 +44,18 @@ struct ioc_local;
 struct ioc_page;
 struct ioc_inode;
 
+struct page_list_t {
+    ioc_page_t *page;
+    struct page_list_t *next;
+};
+
+
+typedef struct {
+    int32_t access;
+    struct page_list_t *page_list;
+    UT_hash_handle hh;
+} lfu_list_t;
+
 struct ioc_priority {
         struct list_head list;
         char             *pattern;
@@ -110,6 +122,7 @@ struct ioc_local {
  */
 struct ioc_page {
         struct list_head    page_lru;
+        lfu_list_t          lfu_list;
         struct ioc_inode    *inode;   /* inode this page belongs to */
         struct ioc_priority *priority;
         char                dirty;
@@ -129,6 +142,7 @@ struct ioc_page {
 struct ioc_cache {
         rbthash_table_t  *page_table;
         struct list_head  page_lru;
+        lfu_list_t        page_lfu;
         time_t            mtime;       /*
                                         * seconds component of file mtime
                                         */

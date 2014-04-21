@@ -12,6 +12,7 @@ for rule in ["seq", "rand"]:
                 plt.figure(j)
                 for algo, color in [("LRU", ("r", 1)),
                                     ("MRU", ("g", 0.7)),
+                                    ("LFU", ("orange", 0.5)),
                                     ("FIFO", ("b", 0.5))]:
                     print algo
                     x=map(float,
@@ -27,9 +28,9 @@ for rule in ["seq", "rand"]:
                 elif i == "1M":
                     y = 0.05
                 elif i == "10M":
-                    y = 0.2
+                    y = 0.4
                 else:
-                    y = 0.8
+                    y = 1.5
                 plt.ylim(0, y)
                 plt.yticks(arange(0, y, y/10))
                 plt.xticks(arange(0, t, t/10))
