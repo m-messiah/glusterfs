@@ -21,7 +21,6 @@
 #include "ioc-mem-types.h"
 #include <assert.h>
 #include <sys/time.h>
-#include "uthash.h"
 
 char
 ioc_empty (struct ioc_cache *cache)

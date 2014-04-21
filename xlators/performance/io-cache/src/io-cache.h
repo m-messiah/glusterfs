@@ -29,6 +29,7 @@
 #include "hashfn.h"
 #include <sys/time.h>
 #include <fnmatch.h>
+#include "uthash.h"
 
 #define IOC_PAGE_SIZE    (1024 * 128)   /* 128KB */
 #define IOC_CACHE_SIZE   (32 * 1024 * 1024)
@@ -44,17 +45,17 @@ struct ioc_local;
 struct ioc_page;
 struct ioc_inode;
 
-struct page_list_t {
-    ioc_page_t *page;
-    struct page_list_t *next;
+
+struct page_list {
+    struct ioc_page *page;
+    struct page_list *next;
 };
 
-
-typedef struct {
+struct lfu_list {
     int32_t access;
-    struct page_list_t *page_list;
+    struct page_list *page_list;
     UT_hash_handle hh;
-} lfu_list_t;
+};
 
 struct ioc_priority {
         struct list_head list;
@@ -122,7 +123,7 @@ struct ioc_local {
  */
 struct ioc_page {
         struct list_head    page_lru;
-        lfu_list_t          lfu_list;
+        lfu_list_t          *lfu_list;
         struct ioc_inode    *inode;   /* inode this page belongs to */
         struct ioc_priority *priority;
         char                dirty;
@@ -142,7 +143,7 @@ struct ioc_page {
 struct ioc_cache {
         rbthash_table_t  *page_table;
         struct list_head  page_lru;
-        lfu_list_t        page_lfu;
+        lfu_list_t        *page_lfu;
         time_t            mtime;       /*
                                         * seconds component of file mtime
                                         */
@@ -198,6 +199,8 @@ typedef struct ioc_page ioc_page_t;
 typedef struct ioc_inode ioc_inode_t;
 typedef struct ioc_waitq ioc_waitq_t;
 typedef struct ioc_fill ioc_fill_t;
+typedef struct page_list page_list_t;
+typedef struct lfu_list  lfu_list_t;
 
 void *
 str_to_ptr (char *string);
