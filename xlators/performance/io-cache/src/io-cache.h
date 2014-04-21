@@ -123,7 +123,7 @@ struct ioc_local {
  */
 struct ioc_page {
         struct list_head    page_lru;
-        lfu_list_t          *lfu_list;
+        struct lfu_list_t  *lfu_list;
         struct ioc_inode    *inode;   /* inode this page belongs to */
         struct ioc_priority *priority;
         char                dirty;
@@ -143,7 +143,7 @@ struct ioc_page {
 struct ioc_cache {
         rbthash_table_t  *page_table;
         struct list_head  page_lru;
-        lfu_list_t        *page_lfu;
+        struct lfu_list  *page_lfu;
         time_t            mtime;       /*
                                         * seconds component of file mtime
                                         */
