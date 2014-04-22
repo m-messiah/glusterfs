@@ -186,7 +186,6 @@ ioc_inode_update (ioc_table_t *table, inode_t *inode, uint32_t weight)
         ioc_inode->inode = inode;
         ioc_inode->table = table;
         INIT_LIST_HEAD (&ioc_inode->cache.page_lru);
-        ioc_inode->cache.page_lfu = NULL;
         pthread_mutex_init (&ioc_inode->inode_lock, NULL);
         ioc_inode->weight = weight;
 
@@ -201,6 +200,7 @@ ioc_inode_update (ioc_table_t *table, inode_t *inode, uint32_t weight)
 
         gf_log (table->xl->name, GF_LOG_TRACE,
                 "adding to inode_lru[%d]", weight);
+        ioc_inode->cache.page_lfu = NULL;
 
 out:
         return ioc_inode;

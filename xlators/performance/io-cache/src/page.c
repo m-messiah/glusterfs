@@ -29,7 +29,7 @@ ioc_empty (struct ioc_cache *cache)
 
         GF_VALIDATE_OR_GOTO ("io-cache", cache, out);
 
-        is_empty = list_empty (&cache->page_lru) && (cache->page_lfu == NULL);
+        is_empty = list_empty (&cache->page_lru); /* && cache->page_lfu is empty  */ 
 
 out:
         return is_empty;
@@ -370,9 +370,12 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
             list_add_tail (&newpage->page_lru, &ioc_inode->cache.page_lru);
         else {
             if (ioc_inode->cache.page_lfu != NULL) {
+                /* First time it is not NULL. Where is the bug? */
+                gf_log ("io-cache", GF_LOG_DEBUG,
+                        "newpage->access = %d && page_lfu->access = %p",
+                        newpage->access, ioc_inode->cache.page_lfu->access);
                 HASH_FIND_INT(ioc_inode->cache.page_lfu, &(newpage->access), lfu_item);
             }
-
             if (lfu_item == NULL){
                 lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
                 lfu_item->access = 1;
