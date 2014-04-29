@@ -47,8 +47,9 @@ struct ioc_inode;
 
 
 struct page_list {
+    int32_t id;
     struct ioc_page *page;
-    struct page_list *next;
+    UT_hash_handle hh;
 };
 
 struct lfu_list {

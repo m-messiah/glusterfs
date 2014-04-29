@@ -201,6 +201,8 @@ ioc_inode_update (ioc_table_t *table, inode_t *inode, uint32_t weight)
         gf_log (table->xl->name, GF_LOG_TRACE,
                 "adding to inode_lru[%d]", weight);
         ioc_inode->cache.page_lfu = NULL;
+        gf_log (table->xl->name, GF_LOG_TRACE,
+                "NULL to cache.page_lfu");
 
 out:
         return ioc_inode;
