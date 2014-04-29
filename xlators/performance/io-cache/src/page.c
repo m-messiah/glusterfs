@@ -29,7 +29,7 @@ ioc_empty (struct ioc_cache *cache)
 
         GF_VALIDATE_OR_GOTO ("io-cache", cache, out);
 
-        is_empty = list_empty (&cache->page_lru); /* && cache->page_lfu is empty  */ 
+        is_empty = list_empty (&cache->page_lru) && (!HASH_COUNT(cache->page_lfu));
 
 out:
         return is_empty;
@@ -65,11 +65,12 @@ __ioc_page_get (ioc_inode_t *ioc_inode, off_t offset)
                 HASH_FIND_INT(ioc_inode->cache.page_lfu, &(page->access), lfu_item);
                 if (lfu_item != NULL) {
                     HASH_FIND_INT(lfu_item->page_list, &(page->offset), tmp_list);
-                    HASH_DEL(lfu_item->page_list, tmp_list);
+                    if (tmp_list)
+                        HASH_DEL(lfu_item->page_list, tmp_list);
                 }
-                page->access += 1;
+                page->access++;
                 HASH_FIND_INT(ioc_inode->cache.page_lfu, &(page->access), lfu_item);
-                if (lfu_item == NULL){
+                if (!lfu_item){
                     lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
                     lfu_item->access = page->access;
                     lfu_item->page_list = NULL;
@@ -114,18 +115,19 @@ out:
 int64_t
 __ioc_page_destroy (ioc_page_t *page)
 {
-        int64_t  page_size = 0;
+        int64_t         page_size = 0;
+        lfu_list_t     *lfu_item = NULL;
+        page_list_t    *page_list = NULL;
 
         GF_VALIDATE_OR_GOTO ("io-cache", page, out);
 
         if (page->iobref)
                 page_size = iobref_size (page->iobref);
                 gf_log ("ioc_page_destroy", GF_LOG_DEBUG,
-                        "page_size = %d", page_size);
+                        "page_size = %"PRId64, page_size);
+        if (page_size != page->size) goto out;
         if (page->waitq) {
                 /* frames waiting on this page, do not destroy this page */
-                gf_log ("ioc_page_destroy", GF_LOG_DEBUG,
-                        "page->waitq");
                 page_size = -1;
                 page->stale = 1;
         } else {
@@ -134,14 +136,16 @@ __ioc_page_destroy (ioc_page_t *page)
 
                 rbthash_remove (page->inode->cache.page_table, &page->offset,
                                 sizeof (page->offset));
-                gf_log ("ioc_page_destroy", GF_LOG_DEBUG,
-                        "LRU destroy");
                 if (page->inode->table->cache_type != IOC_CACHE_LFU)
                     list_del (&page->page_lru);
-                gf_log ("ioc_page_destroy", GF_LOG_DEBUG,
-                        "LFU NULL");
                 page->page_lfu = NULL;
-
+                HASH_FIND_INT(page->inode->cache.page_lfu, &(page->access), lfu_item);
+                if (lfu_item){
+                    HASH_FIND_INT(lfu_item->page_list, &(page->offset), page_list);
+                        if (page_list) { 
+                            HASH_DEL(lfu_item->page_list, page_list);
+                        }
+                }
                 gf_log (page->inode->table->xl->name, GF_LOG_TRACE,
                         "destroying page = %p, offset = %"PRId64" "
                         "&& inode = %p",
@@ -203,23 +207,30 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
 
         if (table->cache_type == IOC_CACHE_LFU) {
             HASH_ITER(hh, curr->cache.page_lfu, lfu_item, lfu_item_tmp) {
-                HASH_ITER(hh, lfu_item->page_list, page_list, page_list_tmp) {                 
+                HASH_ITER(hh, lfu_item->page_list, page_list, page_list_tmp) {
+                    if (!page_list) break;
                     page = page_list->page;
                     *size_pruned += page->size;
-                    gf_log("io-cache-lfu", GF_LOG_DEBUG, "size_pruned = %"PRIu64", try to destroy page=%p", *size_pruned, page);
+                    gf_log("io-cache-lfu", GF_LOG_DEBUG,
+                            "page_size=%"PRIu64" size_pruned = %"PRIu64", try to destroy page=%p; len(page_list)=%d",
+                            *size_pruned, page->size, page, HASH_COUNT(lfu_item->page_list));
                     ret = __ioc_page_destroy (page);
                     if (ret != -1)  {
                         table->cache_used -= ret;
-                        HASH_DEL(lfu_item->page_list, page_list);
                         gf_log (table->xl->name, GF_LOG_DEBUG,
                                 "ret =  %d && index = %d && table->cache_used = %"PRIu64" && table->"
-                                "cache_size = %"PRIu64" size_pruned = %"PRIu64", size_to_prune = %"PRIu64,
+                                "cache_size = %"PRIu64" size_pruned = %"PRIu64", size_to_prune = %"PRIu64" len(page_list)=%d",
                                 ret, index, table->cache_used,
-                                table->cache_size, *size_pruned, size_to_prune);
+                                table->cache_size, *size_pruned, size_to_prune, HASH_COUNT(lfu_item->page_list));
                         }
                     if ((*size_pruned) >= size_to_prune)
                             break;
                 }
+                gf_log("io-cache", GF_LOG_DEBUG, "len(page_lfu) = %d", HASH_COUNT(curr->cache.page_lfu));
+                if (HASH_COUNT(lfu_item->page_list) < 2)
+                    HASH_DEL(curr->cache.page_lfu, lfu_item);
+
+                gf_log("io-cache", GF_LOG_DEBUG, "len(page_lfu) = %d", HASH_COUNT(curr->cache.page_lfu));
                 if ((*size_pruned) >= size_to_prune)
                     break;
             }
@@ -244,7 +255,7 @@ __ioc_inode_prune (ioc_inode_t *curr, uint64_t *size_pruned,
         }
 
         if (ioc_empty (&curr->cache)) {
-                list_del_init (&curr->inode_lru);
+            list_del_init (&curr->inode_lru);
         }
 
 out:
@@ -317,8 +328,8 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
         ioc_page_t  *page           = NULL;
         off_t        rounded_offset = 0;
         ioc_page_t  *newpage        = NULL;
-        lfu_list_t  *lfu_item       = NULL, *lfu_item_tmp = NULL, *lfu_item_tmp2 = NULL;
-        page_list_t *tmp_list       = NULL, *tmp_list2 = NULL;
+        lfu_list_t  *lfu_item       = NULL;
+        page_list_t *tmp_list       = NULL;
 
         GF_VALIDATE_OR_GOTO ("io-cache", ioc_inode, out);
 
@@ -351,27 +362,21 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
         else if (table->cache_type == IOC_CACHE_LRU || table->cache_type == IOC_CACHE_FIFO)
             list_add_tail (&newpage->page_lru, &ioc_inode->cache.page_lru);
         else {
-            if (ioc_inode->cache.page_lfu) {
                 HASH_FIND_INT(ioc_inode->cache.page_lfu, &(newpage->access), lfu_item);
                 if (!lfu_item){
                     lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
                     lfu_item->access = 1;
                     lfu_item->page_list = NULL;
                     HASH_ADD_INT(ioc_inode->cache.page_lfu, access, lfu_item);
-                    gf_log ("io-cache", GF_LOG_DEBUG,
-                            "item not in cache. Add: %p", lfu_item);
                 }
                 tmp_list = (page_list_t*)malloc(sizeof(page_list_t));
                 tmp_list->page = newpage;
                 tmp_list->id = (int32_t)(newpage->offset);
                 HASH_ADD_INT(lfu_item->page_list, id, tmp_list);
-                gf_log ("io-cache", GF_LOG_DEBUG,
-                        "update page_lfu list, page->offset=%d", (int32_t)(newpage->offset));
-            }
         }
 
         page = newpage;
-        gf_log ("io-cache", GF_LOG_TRACE,
+        gf_log ("io-cache", GF_LOG_DEBUG,
                 "returning new page %p", page);
 
 out:
@@ -1076,6 +1081,7 @@ __ioc_page_wakeup (ioc_page_t *page, int32_t op_errno)
         }
 
         if (page->stale) {
+                gf_log("ioc_waitq:1083", GF_LOG_DEBUG, "page->stale");
                 __ioc_page_destroy (page);
         }
 
@@ -1125,6 +1131,7 @@ __ioc_page_error (ioc_page_t *page, int32_t op_ret, int32_t op_errno)
         }
 
         table = page->inode->table;
+        gf_log("ioc_waitq:1133", GF_LOG_DEBUG, "DESTROY!!!");
         ret = __ioc_page_destroy (page);
 
         if (ret != -1) {
