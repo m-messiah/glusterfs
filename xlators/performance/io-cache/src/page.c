@@ -118,10 +118,10 @@ __ioc_page_destroy (ioc_page_t *page)
 
         GF_VALIDATE_OR_GOTO ("io-cache", page, out);
 
-        /*if (page->iobref)
+        if (page->iobref)
                 page_size = iobref_size (page->iobref);
                 gf_log ("ioc_page_destroy", GF_LOG_DEBUG,
-                        "page_size = %d", page_size);*/
+                        "page_size = %d", page_size);
         if (page->waitq) {
                 /* frames waiting on this page, do not destroy this page */
                 gf_log ("ioc_page_destroy", GF_LOG_DEBUG,
@@ -351,23 +351,23 @@ __ioc_page_create (ioc_inode_t *ioc_inode, off_t offset)
         else if (table->cache_type == IOC_CACHE_LRU || table->cache_type == IOC_CACHE_FIFO)
             list_add_tail (&newpage->page_lru, &ioc_inode->cache.page_lru);
         else {
-            if (ioc_inode->cache.page_lfu != NULL) {
+            if (ioc_inode->cache.page_lfu) {
                 HASH_FIND_INT(ioc_inode->cache.page_lfu, &(newpage->access), lfu_item);
-            }
-            if (lfu_item == NULL){
-                lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
-                lfu_item->access = 1;
-                lfu_item->page_list = NULL;
-                HASH_ADD_INT(ioc_inode->cache.page_lfu, access, lfu_item);
+                if (!lfu_item){
+                    lfu_item = (lfu_list_t*)malloc(sizeof(lfu_list_t));
+                    lfu_item->access = 1;
+                    lfu_item->page_list = NULL;
+                    HASH_ADD_INT(ioc_inode->cache.page_lfu, access, lfu_item);
+                    gf_log ("io-cache", GF_LOG_DEBUG,
+                            "item not in cache. Add: %p", lfu_item);
+                }
+                tmp_list = (page_list_t*)malloc(sizeof(page_list_t));
+                tmp_list->page = newpage;
+                tmp_list->id = (int32_t)(newpage->offset);
+                HASH_ADD_INT(lfu_item->page_list, id, tmp_list);
                 gf_log ("io-cache", GF_LOG_DEBUG,
-                        "item not in cache. Add: %p", lfu_item);
+                        "update page_lfu list, page->offset=%d", (int32_t)(newpage->offset));
             }
-            tmp_list = (page_list_t*)malloc(sizeof(page_list_t));
-            tmp_list->page = newpage;
-            tmp_list->id = (int32_t)(newpage->offset);
-            HASH_ADD_INT(lfu_item->page_list, id, tmp_list);
-            gf_log ("io-cache", GF_LOG_DEBUG,
-                    "update page_lfu list, page->offset=%d", (int32_t)(newpage->offset));
         }
 
         page = newpage;
