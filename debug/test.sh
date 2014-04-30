@@ -2,8 +2,7 @@
 
 algos=( LRU MRU FIFO LFU )
 CLIENTS=4
-THREADS=1 
-for CLIENT in `seq 4 $CLIENTS`
+for CLIENT in `seq 1 $CLIENTS`
 do
     ALGO=${algos[$((CLIENT - 1))]}
     rm -rf ./result/$ALGO
@@ -17,28 +16,36 @@ do
     	rm -rf /d${CLIENT}/*
         for i in `seq 1 $FILES`
         do
-        	dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=${SIZE}k count=1 2> /dev/null || exit 1
+        	dd if=/dev/urandom of=/d${CLIENT}_1/$i.test bs=${SIZE}k count=1 2> /dev/null || exit 1
         done
-        	
-        for j in `seq 1 $TRIES`
+        
+        for threads in 1 2 5 10 20
         do
-        	starttime=`date +%s.%N`
-        	cat "/d${CLIENT}/$(( RANDOM % FILES + 1 )).test" > testfile.test || exit 1
-        	echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/rand$THREADS*$TRIES*${SIZE}k.txt
+            for j in `seq 1 $TRIES`
+            do
+                count=$RANDOM
+            	starttime=`date +%s.%N`
+            	seq $threads | parallel -n0 cat "/d${CLIENT}_{#}/$(( count % FILES + 1 )).test" > testfile.test || exit 1
+            	echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/rand$threads*$TRIES*${SIZE}k.txt
+            done
         done
         
     	rm -rf /d${CLIENT}/*
         for i in `seq 1 $FILES`
         do
-        	dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=${SIZE}k count=1 2> /dev/null || exit 1
+        	dd if=/dev/urandom of=/d${CLIENT}_1/$i.test bs=${SIZE}k count=1 2> /dev/null || exit 1
        	done
-        
-       	for j in `seq 1 $TRIES`
-       	do
-       		starttime=`date +%s.%N`
-       		cat "/d${CLIENT}/$(( j % FILES + 1 )).test" > testfile.test || exit 1
-       		echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/seq$THREADS*$TRIES*${SIZE}k.txt
-    	done
+ 
+
+        for threads in 1 2 5 10 20
+        do        
+           	for j in `seq 1 $TRIES`
+           	do
+           		starttime=`date +%s.%N`
+           		seq $threads | parallel -n0 cat "/d${CLIENT}_{#}/$(( j % FILES + 1 )).test" > testfile.test || exit 1
+           		echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/seq$threads*$TRIES*${SIZE}k.txt
+        	done
+        done
     done
     
     for SIZE in 1 10 40
@@ -48,25 +55,33 @@ do
     	do
     		dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=1M count=$SIZE 2> /dev/null || exit 1
     	done
-    	
-    	for j in `seq 1 $TRIES`
-    	do
-    		starttime=`date +%s.%N`
-    		cat "/d${CLIENT}/$(( RANDOM % FILES + 1 )).test" > testfile.test || exit 1
-    		echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/rand$THREADS*$TRIES*${SIZE}M.txt
-    	done
+ 
+        for threads in 1 2 5 10 20
+        do
+            for j in `seq 1 $TRIES`
+            do
+                count=$RANDOM
+            	starttime=`date +%s.%N`
+            	seq $threads | parallel -n0 cat "/d${CLIENT}_{#}/$(( count % FILES + 1 )).test" > testfile.test || exit 1
+            	echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/rand$threads*$TRIES*${SIZE}M.txt
+            done
+        done
     
 	rm -rf /d${CLIENT}/*
     	for i in `seq 1 $FILES`
     	do
     		dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=1M count=$SIZE 2> /dev/null || exit 1
     	done
-    
-    	for j in `seq 1 $TRIES`
-    	do
-    		starttime=`date +%s.%N`
-    		cat "/d${CLIENT}/$(( j % FILES + 1 )).test" > testfile.test || exit 1
-    		echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/seq$THREADS*$TRIES*${SIZE}M.txt
-    	done
+ 
+        for threads in 1 2 5 10 20
+        do        
+           	for j in `seq 1 $TRIES`
+           	do
+           		starttime=`date +%s.%N`
+           		seq $threads | parallel -n0 cat "/d${CLIENT}_{#}/$(( j % FILES + 1 )).test" > testfile.test || exit 1
+           		echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/seq$threads*$TRIES*${SIZE}M.txt
+        	done
+        done
+   
     done
 done
