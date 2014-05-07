@@ -1,2 +1,6 @@
 #glusterfs --log-file=client4.log --fopen-keep-cache=false --volfile=./volfiles/client4.vol /d4
-glusterfs --debug --fopen-keep-cache=false --volfile=./volfiles/client4.vol /d4
+#glusterfs --debug --fopen-keep-cache=false --volfile=./volfiles/client4.vol /d4
+for i in `seq 5`
+do
+    glusterfs --log-file=client4_$i.log --fopen-keep-cache=false --volfile=./volfiles/client4.vol /d4_$i
+done

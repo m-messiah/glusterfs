@@ -1,8 +1,8 @@
 #!/bin/bash
 
 algos=( LRU MRU FIFO LFU )
-CLIENTS=4
-for CLIENT in `seq 1 $CLIENTS`
+CLIENTS=3
+for CLIENT in `seq 3 $CLIENTS`
 do
     ALGO=${algos[$((CLIENT - 1))]}
     rm -rf ./result/$ALGO
@@ -13,13 +13,13 @@ do
     
     for SIZE in 10 100 200
     do
-    	rm -rf /d${CLIENT}/*
+    	rm -rf /d${CLIENT}_1/*
         for i in `seq 1 $FILES`
         do
         	dd if=/dev/urandom of=/d${CLIENT}_1/$i.test bs=${SIZE}k count=1 2> /dev/null || exit 1
         done
         
-        for threads in 1 2 5 10 20
+        for threads in 1 2 5
         do
             for j in `seq 1 $TRIES`
             do
@@ -29,15 +29,15 @@ do
             	echo "$(date +%s.%N) - $starttime" | bc >> result/${ALGO}/rand$threads*$TRIES*${SIZE}k.txt
             done
         done
-        
-    	rm -rf /d${CLIENT}/*
+ 
+    	rm -rf /d${CLIENT}_1/*
         for i in `seq 1 $FILES`
         do
         	dd if=/dev/urandom of=/d${CLIENT}_1/$i.test bs=${SIZE}k count=1 2> /dev/null || exit 1
        	done
  
 
-        for threads in 1 2 5 10 20
+        for threads in 1 2 5
         do        
            	for j in `seq 1 $TRIES`
            	do
@@ -48,15 +48,15 @@ do
         done
     done
     
-    for SIZE in 1 10 40
+    for SIZE in 10
     do
-	rm -rf /d${CLIENT}/*
+	rm -rf /d${CLIENT}_1/*
     	for i in `seq 1 $FILES`
     	do
-    		dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=1M count=$SIZE 2> /dev/null || exit 1
+    		dd if=/dev/urandom of=/d${CLIENT}_1/$i.test bs=1M count=$SIZE 2> /dev/null || exit 1
     	done
  
-        for threads in 1 2 5 10 20
+        for threads in 1 2 5
         do
             for j in `seq 1 $TRIES`
             do
@@ -67,13 +67,13 @@ do
             done
         done
     
-	rm -rf /d${CLIENT}/*
+	rm -rf /d${CLIENT}_1/*
     	for i in `seq 1 $FILES`
     	do
-    		dd if=/dev/urandom of=/d${CLIENT}/$i.test bs=1M count=$SIZE 2> /dev/null || exit 1
+    		dd if=/dev/urandom of=/d${CLIENT}_1/$i.test bs=1M count=$SIZE 2> /dev/null || exit 1
     	done
  
-        for threads in 1 2 5 10 20
+        for threads in 1 2 5
         do        
            	for j in `seq 1 $TRIES`
            	do

@@ -1,1 +1,4 @@
-glusterfs --log-file=client2.log --fopen-keep-cache=false --volfile=./volfiles/client2.vol /d2
+for i in `seq 5`
+do
+    glusterfs --log-file=client2_$i.log --fopen-keep-cache=false --volfile=./volfiles/client2.vol /d2_$i
+done
