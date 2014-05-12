@@ -7,8 +7,8 @@ j=0
 #plt.xkcd()
 for rule in ["seq", "rand"]:
     for thread in ["1", "2", "5"]:
-        for i in ["10k", "100k", "200k", "1M", "10M", "40M"]:
-            for t in [1000, 10000]:
+        for i in ["10k", "100k", "200k", "1M", "10M"]:
+            for t in [1000]:
                 try:
                     plt.figure(j)
                     for algo, color in [("LRU", ("r", 1)),
@@ -24,15 +24,12 @@ for rule in ["seq", "rand"]:
                                  color[0], label=algo, alpha=color[1])
     
                     plt.ylabel("Sec/file")
-                    #if i[-1] == "k":
-                    #    y = 0.02
-                    #elif i == "1M":
-                    #    y = 0.05
-                    #elif i == "10M":
-                    #    y = 0.4
-                    #else:
-                    #    y = 1.5
-                    y = 10
+                    if i[-1] == "k":
+                        y = 0.6
+                    elif i == "1M":
+                        y = 2
+                    else:
+                        y = 20
                     plt.ylim(0, y)
                     plt.yticks(arange(0, y, y/10))
                     plt.xticks(arange(0, t, t/10))
