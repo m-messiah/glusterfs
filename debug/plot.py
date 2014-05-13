@@ -27,9 +27,9 @@ for rule in ["seq", "rand"]:
                     if i[-1] == "k":
                         y = 0.6
                     elif i == "1M":
-                        y = 2
+                        y = 2.0
                     else:
-                        y = 20
+                        y = 20.0
                     plt.ylim(0, y)
                     plt.yticks(arange(0, y, y/10))
                     plt.xticks(arange(0, t, t/10))
