@@ -1,7 +1,7 @@
 #!/bin/bash
 
 algos=( LRU MRU FIFO LFU )
-CLIENTS=3
+CLIENTS=4
 
 function testReadK() {
     CLIENT=$1
@@ -59,7 +59,7 @@ function testReadM() {
     done
 }
 
-for CLIENT in $(seq 3 $CLIENTS)
+for CLIENT in $(seq 4 $CLIENTS)
 do
     ALGO=${algos[$((CLIENT - 1))]}
     #rm -rf ./result/$ALGO
@@ -68,13 +68,13 @@ do
     TRIES=1000
     FILES=$(( TRIES / 20))
     
-    for SIZE in 10 100 200
-    do
-        testReadK $CLIENT $SIZE $ALGO rand
-        testReadK $CLIENT $SIZE $ALGO seq
-    done
+    #for SIZE in 10 100 200
+    #do
+    #    testReadK $CLIENT $SIZE $ALGO rand
+    #    testReadK $CLIENT $SIZE $ALGO seq
+    #done
     
-    for SIZE in 10
+    for SIZE in 1
     do
         testReadM $CLIENT $SIZE $ALGO rand
         testReadM $CLIENT $SIZE $ALGO seq
