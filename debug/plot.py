@@ -1,14 +1,14 @@
 #!/usr/bin/python
 import matplotlib
-matplotlib.use('svg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from numpy import arange
 j=0
 #plt.xkcd()
 for rule in ["seq", "rand"]:
-    for thread in ["1", "2", "5"]:
+    for thread in ["1", "2", "5", "write"]:
         for i in ["10k", "100k", "200k", "1M", "10M"]:
-            for t in [1000]:
+            for t in [1000, 250]:
                 try:
                     plt.figure(j)
                     for algo, color in [("LRU", ("r", 1)),
@@ -24,20 +24,41 @@ for rule in ["seq", "rand"]:
                                  color[0], label=algo, alpha=color[1])
     
                     plt.ylabel("Sec/file")
-                    if i[-1] == "k":
+                    if i == "10k":
+                        ymin, ymax, tick = 0.15, 0.5, 0.05
+                    elif i == "100k":
+                        ymin, ymax, tick = 0.15, 0.6, 0.05
+                    elif i == "200k":
                         y = 0.6
+                        if thread == "write":
+                            ymin, tick = 0.3, 0.01
+                        else:
+                            ymin, tick = 0.2, 0.05
                     elif i == "1M":
-                        y = 2.0
-                    else:
-                        y = 20.0
-                    plt.ylim(0, y)
-                    plt.yticks(arange(0, y, y/10))
-                    plt.xticks(arange(0, t, t/10))
+                        if thread == "5":
+                            ymin, ymax, tick = 0.3, 0.8, 0.05
+                        elif thread == "write":
+                            ymin, ymax, tick = 0.7, 1.4, 0.05
+                        else:
+                            ymin, ymax, tick = 0.2, 0.6, 0.05
+                    elif i == "10M":
+                        if thread == "1":
+                            ymin, ymax, tick = 0, 2, 0.1
+                        elif thread == "2":
+                            ymin, ymax, tick = 0, 16, 1
+                        elif thread == "5":
+                            ymin, ymax, tick = 0, 20, 1
+                        else:
+                            ymin, ymax, tick = 3, 5, 0.1  
+                    plt.ylim(ymin, ymax)
+                    plt.yticks(arange(ymin, ymax, tick))
+                    plt.xticks(arange(0, 1000, 100))
                     plt.grid(True, which='both', axis='both')
                     plt.legend()
                     plt.title(rule.capitalize())
                     plt.savefig("./result/img/" + rule
-                                + thread + "*" + str(t) + "*" + i + ".svg")
+                                + thread + "*" + str(t) + "*" + i + ".png",
+                                format="png")
                     print("Saved " + i + " * " + str(t))
                     j+=1
                 except Exception as e:
