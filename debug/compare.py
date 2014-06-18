@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from operator import itemgetter
 import matplotlib
 
 #matplotlib.use('Agg')
@@ -7,16 +8,18 @@ from numpy import arange
 from matplotlib.pyplot import Rectangle
 
 #plt.xkcd()
+
+red, green, orange, blue = "#e9655a", "#8fb283", "#d6c04a", "#00b7c7"
 ind = arange(4)
 ymin, ymax = 100, 0
-width = 0.35
+width = 1
 for size in ["10k", "100k", "200k", "1M", "10M"]:
     if size == "1M":
         textlabels = filter(
-            lambda a: a != "wr<",
-            [i + s + rep if i + s + rep != "ws<" else ""
+            lambda a: a != "wrm" and a != "wsm",
+            [i + s + rep
              for i in ["1", "2", "5", "w"]
-             for s in ["s", "r"] for rep in ["", "<"]])
+             for s in ["s", "r"] for rep in ["", "m"]])
     else:
         textlabels = [i + s for i in ["1", "2", "5", "w"] for s in ["s", "r"]]
     fig, ax = plt.subplots()
@@ -29,10 +32,10 @@ for size in ["10k", "100k", "200k", "1M", "10M"]:
                 ts.append(250)
             for t in ts:
                 means = []
-                for algo, color, offset in [("LRU", "r", 0),
-                                            ("MRU", "g", 1),
-                                            ("LFU", "orange", 2),
-                                            ("FIFO", "b", 3)]:
+                for algo, color, offset in [("LRU", red, 0),
+                                            ("MRU", green, 1),
+                                            ("LFU", orange, 2),
+                                            ("FIFO", blue, 3)]:
                     try:
                         x = reduce(lambda a, b: a + b,
                                    map(float,
@@ -46,27 +49,26 @@ for size in ["10k", "100k", "200k", "1M", "10M"]:
                     except Exception as e:
                         continue
 
-                for offset, (mean, color) in enumerate(means):
+                for mean, color in sorted(means, key=itemgetter(0),
+                                          reverse=True):
                     rects.append(
-                        ax.bar(j * width * 6 + offset * width,
-                               mean, width, linewidth=0, color=color,
-                               alpha=1
-                               if mean == min(map(lambda m: m[0], means))
-                               else 0.2))
+                        ax.bar((j if j < 14 else 13) * width * 2,
+                               mean, width, linewidth=0, color=color))
                 j += 1
 
-    ymax *= 1.2
-    ymin *= 0.9
+    ymax *= 1.01
+    ymin *= 0.95
     ax.set_ylim(ymin, ymax)
-    ax.set_ylabel('Time')
+    #ax.set_ylabel('Time')
     ax.set_title('Time for ' + size)
+    j = j if j < 15 else 14
     ind = arange(j)
-    ax.set_xticks(ind * width * 6 + width * 2)
-    ax.set_xlim(0, 6 * width * j + 2 * width)
+    ax.set_xticks(ind * width * 2 + width / 2.)
+    ax.set_xlim(0, 2 * width * j)
     ax.set_xticklabels(textlabels)
     ax.set_yticks(arange(ymin, ymax, round((ymax - ymin) / 10, 2)))
     labels = [Rectangle((0, 0), 1, 1, fc=c, alpha=0.8, linewidth=0)
-              for c in ["r", "g", "orange", "b"]]
+              for c in [red, green, orange, blue]]
     ax.legend(labels, ["LRU", "MRU", "LFU", "FIFO"], loc=2, frameon=False)
     plt.minorticks_on()
     plt.tick_params(axis="x", which='both', bottom='off', top='off',
@@ -75,6 +77,8 @@ for size in ["10k", "100k", "200k", "1M", "10M"]:
                     labelleft='off')
     #plt.grid(True, which='both', axis='y')
     plt.box()
+    #fig.set_size_inches(12, 8)
     #plt.show()
     #exit(0)
-    plt.savefig("./result/compare_" + size + ".png", format="png")
+    plt.savefig("./result/compare_" + size + ".png", format="png",
+                dpi=300, bbox_inches='tight')
